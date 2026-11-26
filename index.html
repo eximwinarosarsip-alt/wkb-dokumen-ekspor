@@ -838,7 +838,7 @@ function buildPDF(kind){
 function buildPDFAt(kind, k){
   const J = window.jspdf && window.jspdf.jsPDF; if(!J) throw new Error('jsPDF tidak termuat');
   const m = model(D, 'kat'), t = m.tot, pdf = new J({unit:'mm', format:[215, 330]});
-  const M = 20, PW = 215, LIM = 315, w = (PW - 2 * M) / 186; let y = 40;
+  const M = 15, PW = 215, LIM = 315, w = (PW - 2 * M) / 186; let y = 50;
   const scaleCols = o => Object.fromEntries(Object.entries(o).map(([i, c]) => [i, c.cellWidth ? {...c, cellWidth:c.cellWidth * w} : c]));
   const title = kind === 'pl' ? 'PACKING LIST' : 'COMMERCIAL INVOICE';
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15 * Math.max(k, .6)); pdf.text(title, PW/2, y, {align:'center'});
