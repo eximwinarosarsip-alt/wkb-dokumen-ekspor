@@ -400,7 +400,7 @@ function autoNumbers(d, mark){
   const m = /^(\d{4})-(\d{2})/.exec(d.docDate||'');
   const mm = m ? ROMAN[+m[2]-1] : '', yy = m ? m[1] : '';
   const mk = mark || 'WKB';
-  return { inv: `${d.seq\vert{}\vert{}''}/${mk}/INV/${mm}/${yy}`, pl: `${d.seq\vert{}\vert{}''}/${mk}/PL/${mm}/${yy}` };
+  return { inv: `${d.seq||''}/${mk}/INV/${mm}/${yy}`, pl: `${d.seq||''}/${mk}/PL/${mm}/${yy}` };
 }
 function model(d, by){
   const groups = [], idx = {};
@@ -606,4 +606,678 @@ function paperHTML(kind){
     const mid = ' style="vertical-align:middle;font-weight:700"';
     const chargeRows = m.charges.map(c => `<tr><td colspan="8" style="text-align:right">${esc(c.name)}</td><td class="r">${fmt2(c.amt)}</td></tr>`).join('') + (m.charges.length ? `<tr class="tot"><td colspan="8" style="text-align:right">TOTAL INVOICE</td><td class="r">${fmt2(m.grand)}</td></tr>` : '');
     const body = m.groups.map(g => g.rows.map((r, i) => '<tr>' + (i === 0 ? `<td class="c" rowspan="${g.rows.length}"${mid}>${esc(htsOf(g.kat))}</td><td class="c" rowspan="${g.rows.length}"${mid}>${esc(g.nama)}</td>` : '') +
-      `<td class="c">${esc(r.size)}</td><td class="c">${esc(r.desc)}</td><td class="r">${fmt0(r.qty)}</td><td class="r">${fmt2(r.netKg)}</td>
+      `<td class="c">${esc(r.size)}</td><td class="c">${esc(r.desc)}</td><td class="r">${fmt0(r.qty)}</td><td class="r">${fmt2(r.netKg)}</td><td class="r">${esc(lbsPcsText(r))}</td><td class="r">${fmtP(r.price)} /${UL[r.priceUnit]}</td><td class="r">${fmt2(r.amt)}</td></tr>`).join('')).join('');
+    table = `<table class="doc"><thead><tr><th>HTS Code</th><th>Description of Goods</th><th>Size</th><th>Packing Style</th><th>Quantity<br>(Ctn)</th><th>Net Weight<br>(Kgs)</th><th>Lbs / Pcs</th><th>Unit Price<br>(USD)</th><th>Total Amount<br>USD${term}</th></tr></thead><tbody>${body}<tr class="tot"><td colspan="4" style="text-align:center">TOTAL</td><td class="r">${fmt0(t.ctn)}</td><td class="r">${fmt2(t.netKg)}</td><td></td><td></td><td class="r">${fmt2(t.amt)}</td></tr>${chargeRows}</tbody></table>`;
+  }
+  let extra = '';
+  if(kind === 'inv'){
+    const bank = bankLines();
+    extra = dutyHTML(dutyCalc(D, m)) + `<div class="say">SAID: ${esc(sayUSD(m.grand))}</div>
+      <div class="pay"><div>Freight / Terms</div><div>:</div><div>${esc(D.payNote || '-')}</div>
+      <div>Payment by T/T to</div><div>:</div><div>${bank.length ? bank.map(esc).join('<br>') : '<span class="ph">isi data bank di tab Profil</span>'}</div>
+      <div>In favor of</div><div>:</div><div>${esc(CO.name)}</div></div>`;
+  }
+  const empty = m.groups.length ? '' : '<p class="ph" style="margin:12px 0">Belum ada baris dengan jumlah karton. Cari produk di kiri lalu isi jumlah kartonnya.</p>';
+  return `<h2>${kind === 'pl' ? 'PACKING LIST' : 'COMMERCIAL INVOICE'}</h2>${kv}${table}${empty}${extra}<div class="sig">${esc(footerText())}<b>${esc(signerName())}</b></div>`;
+}
+function renderPaper(){
+  hydrateKat(D); ensureUS();
+  $('#paper').innerHTML = paperHTML(ACTIVE);
+  const t = model(D).tot;
+  const has = t.ctn > 0;
+  $('#btnPdf').disabled = !has; $('#btnXlsx').disabled = !has;
+  $('#banner').hidden = !D.sample;
+  $('#sum').innerHTML = [['Karton', fmt0(t.ctn)], ['Net (kg)', fmt2(t.netKg)], ['Gross (kg)', fmt2(t.grossKg)], ['Total (USD)', fmt2(model(D).grand)]].map(a => `<div><small>${a[0]}</small><b>${a[1]}</b></div>`).join('');
+  refreshUsSum();
+}
+
+function fillForm(){
+  $$('[data-k]', $('#v-make')).forEach(el => { const v = getPath(D, el.dataset.k); el.value = v == null ? '' : v; });
+  $('#autoHint').textContent = D.autoNo ? 'Nomor mengikuti no. urut dan tanggal.' : 'Nomor diisi manual.';
+  renderSigners(); renderDuties(); renderCharges(); renderLines(); renderPaper();
+}
+function onFormChange(el){
+  const k = el.dataset.k; let v = el.value;
+  if(k === 'seq') v = v === '' ? '' : Math.max(0, Math.floor(+v));
+  setPath(D, k, v);
+  if(k === 'invNo' || k === 'plNo'){ D.autoNo = false; $('#autoHint').textContent = 'Nomor diisi manual.'; }
+  if((k === 'seq' || k === 'docDate') && D.autoNo){ refreshNumbers(); }
+  renderPaper();
+}
+function refreshNumbers(){ const n = autoNumbers(D, CO.mark); D.invNo = n.inv; D.plNo = n.pl; $('#f-inv').value = D.invNo; $('#f-pl').value = D.plNo; }
+
+function lineLabel(l){ return `<b>${esc(l.style)}</b><small>${esc(l.nama)} · ${esc(l.size)}${l.kategori ? ' · ' + esc(katLabel(l.kategori)) : ''}${l.kode ? ' · ' + esc(l.kode) : ''}</small>`; }
+function renderLines(){
+  const tb = $('#lines'); tb.innerHTML = '';
+  $('#linesT').hidden = !D.lines.length;
+  $('#linesHint').textContent = D.lines.length ? 'Baris tanpa jumlah karton tidak ikut dicetak. Harga bisa diubah per baris tanpa mengubah database.' : 'Belum ada produk di dokumen ini. Ketik di kolom pencarian, lalu klik produknya.';
+  for(const l of D.lines){
+    const tr = document.createElement('tr'); tr.dataset.k = l.k;
+    tr.innerHTML = `<td class="ld">${lineLabel(l)}<small class="calc"></small></td><td class="n"><input class="q" type="number" min="0" step="1" inputmode="numeric" aria-label="Jumlah karton"></td><td class="p"><input class="p" type="number" min="0" step="any" inputmode="decimal" aria-label="Harga USD"><select class="pu" aria-label="Harga dikali dengan"><option value="kg">per kg</option><option value="lbs">per lbs</option><option value="pcs">per pcs</option></select></td><td><button class="x" type="button" aria-label="Hapus baris">×</button></td>`;
+    const qi = $('input.q', tr), pi = $('input.p', tr), calc = $('.calc', tr);
+    qi.value = l.qty; pi.value = l.price; const ui = $('select.pu', tr); ui.value = l.priceUnit || 'kg';
+    const upd = () => { const q = Math.floor(+l.qty || 0); calc.textContent = q > 0 ? `${fmt0(q)} ctn · ${fmt2(q * l.netKg)} kg net${l.pcs > 0 ? ' · ' + fmt0(q * l.pcs) + ' pcs' : ''} · USD ${fmt2(model({lines:[l]}).tot.amt)}` : 'isi jumlah karton'; };
+    ui.addEventListener('change', () => { l.priceUnit = ui.value; upd(); renderPaper(); });
+    qi.addEventListener('input', () => { l.qty = qi.value === '' ? '' : +qi.value; upd(); renderPaper(); });
+    pi.addEventListener('input', () => { l.price = pi.value === '' ? 0 : +pi.value; upd(); renderPaper(); });
+    $('.x', tr).addEventListener('click', () => { D.lines = D.lines.filter(x => x.k !== l.k); renderLines(); renderPaper(); });
+    upd(); tb.appendChild(tr);
+  }
+}
+function matchItems(q){
+  const toks = q.toLowerCase().split(/\s+/).filter(Boolean);
+  return ITEMS.filter(it => { const hay = (it.nama + ' ' + it.style + ' ' + it.size + ' ' + (it.kode || '') + ' ' + katLabel(it.kategori)).toLowerCase(); return toks.every(t => hay.includes(t)); });
+}
+function sortItems(a, b){ return (a.nama || '').localeCompare(b.nama || '') || (a.style || '').localeCompare(b.style || '') || (a.size || '').localeCompare(b.size || ''); }
+function renderResults(){
+  const ul = $('#results'), q = $('#q').value.trim();
+  if(!ITEMS.length){ ul.innerHTML = '<li class="empty"><b>Database item masih kosong</b>Tambahkan produk di tab Database item.</li>'; return; }
+  const list = (q ? matchItems(q) : ITEMS.slice()).sort(sortItems);
+  if(!list.length){ ul.innerHTML = '<li class="hint">Tidak ada produk yang cocok dengan "' + esc(q) + '".</li>'; return; }
+  ul.innerHTML = list.slice(0, 40).map(it => `<li><button type="button" class="res" data-id="${esc(it.id)}"><b>${esc(it.style)}</b><em>USD ${fmtP(it.harga)}/${esc(it.hargaUnit || 'kg')}</em><small>${esc(it.nama)} · ${esc(it.size)}${it.kategori ? ' · ' + esc(katLabel(it.kategori)) : ''}${it.kode ? ' · ' + esc(it.kode) : ''}</small><small style="text-align:right">${fmt2(it.netKg)} kg net/ctn</small></button></li>`).join('');
+}
+function addItem(id){
+  const it = ITEMS.find(x => x.id === id); if(!it) return;
+  const l = lineFromItem(it, ''); D.lines.push(l); renderLines(); renderPaper();
+  const row = $(`#lines tr[data-k="${l.k}"] input.q`); if(row) row.focus();
+}
+
+function htsOf(k){ return ({raw:CO.htsRaw, cooked:CO.htsCooked, ebifry:CO.htsEbifry, tempura:CO.htsTempura})[k] || ''; }
+function dutyHTML(dc){
+  if(!dc) return '';
+  const L = brokerLayout(dc), fill = {rc:'#c4bd97', bt:'#f4b183'}, B = ' style="font-weight:700"';
+  let h = '<table class="doc duty" style="font-size:9.5px"><thead><tr><th colspan="2" style="text-align:left">Information for Custom Broker (USD)</th>' + L.blocks.map(b => `<th colspan="3" style="background:${fill[b.key]}">${esc(b.title)}</th>`).join('') + '</tr></thead><tbody>';
+  for(let i = 0; i < L.n; i++){
+    const l = L.left[i], bl = l && (l[0] === 'Sub Total' || l[0] === 'FOB VALUE') ? B : '';
+    h += '<tr>' + (l ? `<td${bl}>${esc(l[0])}</td><td class="r"${bl}>${esc(l[1])}</td>` : '<td></td><td></td>');
+    for(const b of L.blocks){
+      const r = b.rows[i]; if(!r){ h += '<td></td><td></td><td></td>'; continue; }
+      const bs = r[0] === 'FOB VALUE' || r[0] === 'Total' ? B : '';
+      h += r[0] === 'FOB VALUE' ? `<td${bs}>${esc(r[0])}</td><td class="c" colspan="2"${bs}>${esc(r[2])}</td>` : `<td${bs}>${esc(r[0])}</td><td class="r"${bs}>${esc(r[1])}</td><td class="r"${bs}>${esc(r[2])}</td>`;
+    }
+    h += '</tr>';
+  }
+  return h + '</tbody></table>';
+}
+const DEFAULT_DUTIES = [['ADD', 3.9], ['Tariff', 10], ['MPF', 0.3464], ['HMF', 0.125]];
+function ensureCharges(){ if(!Array.isArray(D.charges)) D.charges = []; }
+function renderCharges(){
+  ensureCharges(); const tb = $('#chRows'); tb.innerHTML = '';
+  D.charges.forEach((x, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input class="cn" list="dl-charge" style="text-align:left" aria-label="Nama biaya"></td><td class="p"><input class="ca" type="number" step="any" inputmode="decimal" aria-label="Jumlah USD"></td><td><button class="x" type="button" aria-label="Hapus biaya">×</button></td>';
+    const ni = $('.cn', tr), ai = $('.ca', tr); ni.value = x.name || ''; ai.value = x.amt === 0 ? '' : x.amt;
+    ni.addEventListener('input', () => { x.name = ni.value; renderPaper(); });
+    ai.addEventListener('input', () => { x.amt = ai.value === '' ? 0 : +ai.value; renderPaper(); });
+    $('.x', tr).addEventListener('click', () => { D.charges.splice(i, 1); renderCharges(); renderPaper(); });
+    tb.appendChild(tr);
+  });
+}
+function ensureUS(){ if(!D.us) D.us = {on:false, duties:[]}; const u = D.us; if(!Array.isArray(u.duties)) u.duties = []; if(u.freight == null) u.freight = 0; if(u.broker == null) u.broker = 0; if(u.insPct == null) u.insPct = 0.11; if(!Array.isArray(u.duties2)) u.duties2 = DEFAULT_DUTIES.map(x => ({name:x[0], rate:x[0] === 'ADD' ? 0 : x[1]})); }
+function hydrateKat(d){ for(const l of d.lines) if(!l.kategori){ const it = ITEMS.find(x => x.id === l.itemId); if(it && it.kategori) l.kategori = it.kategori; } }
+function renderSigners(){
+  const s = $('#f-signer'), cur = D.signatory || CO.signatory || '';
+  const names = [CO.signatory, CO.signatory2].filter(Boolean); if(cur && !names.includes(cur)) names.push(cur);
+  s.innerHTML = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') || '<option value="">Isi nama direktur di tab Profil</option>';
+  s.value = cur;
+}
+function renderDuties(){
+  ensureUS(); $('#us-on').checked = !!D.us.on; $('#us-box').hidden = !D.us.on;
+  $('#us-freight').value = D.us.freight || ''; $('#us-broker').value = D.us.broker || ''; $('#us-ins').value = D.us.insPct;
+  dutyList('#dutyRows', 'duties'); dutyList('#dutyRows2', 'duties2');
+}
+function dutyList(sel, key){
+  const tb = $(sel); tb.innerHTML = '';
+  D.us[key].forEach((x, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input class="dn" style="text-align:left" aria-label="Nama duty"></td><td class="p"><input class="dr" type="number" min="0" step="0.0001" inputmode="decimal" aria-label="Rate persen"></td><td><button class="x" type="button" aria-label="Hapus duty">×</button></td>';
+    const ni = $('.dn', tr), ri = $('.dr', tr); ni.value = x.name || ''; ri.value = x.rate;
+    ni.addEventListener('input', () => { x.name = ni.value; renderPaper(); });
+    ri.addEventListener('input', () => { x.rate = ri.value === '' ? 0 : +ri.value; renderPaper(); });
+    $('.x', tr).addEventListener('click', () => { D.us[key].splice(i, 1); dutyList(sel, key); renderPaper(); });
+    tb.appendChild(tr);
+  });
+}
+function refreshUsSum(){
+  const el = $('#usSum'); if(!D.us.on){ el.textContent = ''; return; }
+  const dc = dutyCalc(D, model(D));
+  if(!dc){ el.textContent = 'Belum ada produk berkategori di dokumen ini, jadi blok duty belum tampil. Isi kategori di Database item.'; return; }
+  el.textContent = dc.tables.map(t => `${t.key === 'rc' ? 'Raw + Cooked' : 'Ebi Fry + Tempura'}: dasar USD ${fmt2(t.base)} · FOB USD ${fmt2(t.fob)} · duty USD ${fmt2(t.totalDuty)}`).join('  |  ') + (dc.unk ? ` · ${dc.unk} baris belum punya kategori (tidak dihitung)` : '');
+}
+
+function renderBuyers(){
+  const s = $('#buyerSel'); const cur = s.value;
+  s.innerHTML = '<option value="">' + (BUY.length ? 'Pilih buyer tersimpan…' : 'Belum ada buyer tersimpan') + '</option>' + BUY.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+  s.value = cur;
+}
+function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'buyer'; }
+
+function itField(k){ return $('#it-' + k); }
+const IT_KEYS = ['nama','style','size','kategori','kode','pcs','harga','hargaUnit','netKg','netLbs','grossKg','grossLbs'];
+function resetItemForm(){
+  EDIT_ITEM = null; IT_KEYS.forEach(k => { itField(k).value = ''; delete itField(k).dataset.dirty; }); itField('hargaUnit').value = 'kg'; delete itField('grossKg').dataset.manual;
+  $('#itFormTitle').textContent = 'Tambah item';
+}
+function loadItem(it){
+  EDIT_ITEM = it.id; IT_KEYS.forEach(k => { itField(k).value = it[k] == null ? '' : it[k]; itField(k).dataset.dirty = '1'; });
+  if(!itField('hargaUnit').value) itField('hargaUnit').value = 'kg';
+  if(Math.abs((+it.grossKg || 0) - (+it.netKg || 0) * 1.2) > 0.01) itField('grossKg').dataset.manual = '1'; else delete itField('grossKg').dataset.manual;
+  $('#itFormTitle').textContent = 'Ubah item'; window.scrollTo({top:0, behavior:'smooth'});
+}
+function wireItemForm(){
+  const setV = (k, v) => { itField(k).value = v > 0 ? Number(v.toFixed(4)) : ''; };
+  const fromNet = () => { if(itField('grossKg').dataset.manual) return; const g = (+itField('netKg').value || 0) * 1.2; setV('grossKg', g); setV('grossLbs', g * LB); };
+  itField('netKg').addEventListener('input', () => { setV('netLbs', (+itField('netKg').value || 0) * LB); fromNet(); });
+  itField('netLbs').addEventListener('input', () => { setV('netKg', (+itField('netLbs').value || 0) / LB); fromNet(); });
+  itField('grossKg').addEventListener('input', () => { if(itField('grossKg').value === '') delete itField('grossKg').dataset.manual; else itField('grossKg').dataset.manual = '1'; setV('grossLbs', (+itField('grossKg').value || 0) * LB); });
+  itField('grossLbs').addEventListener('input', () => { itField('grossKg').dataset.manual = '1'; setV('grossKg', (+itField('grossLbs').value || 0) / LB); });
+  $('#itReset').addEventListener('click', resetItemForm);
+  $('#itSave').addEventListener('click', async () => {
+    const it = { nama:itField('nama').value.trim(), style:itField('style').value.trim(), size:itField('size').value.trim(), kode:itField('kode').value.trim(), kategori:itField('kategori').value,
+      pcs:+itField('pcs').value || 0, harga:+itField('harga').value || 0, hargaUnit:itField('hargaUnit').value || 'kg', netKg:+itField('netKg').value || 0, grossKg:+itField('grossKg').value || 0 };
+    it.netLbs = +itField('netLbs').value || Number((it.netKg * LB).toFixed(4));
+    it.grossLbs = +itField('grossLbs').value || Number((it.grossKg * LB).toFixed(4));
+    if(!it.nama || !it.style || !it.kategori || !(it.netKg > 0) || !(it.grossKg > 0)){ toast('Isi minimal nama produk, packing style, kategori, net kg, dan gross kg'); return; }
+    const id = EDIT_ITEM || ('i-' + Date.now().toString(36) + (uid++));
+    try{ await Store.put('items', id, it); toast('Item disimpan'); resetItemForm(); }catch(e){ toast('Gagal menyimpan item'); }
+  });
+  $('#itq').addEventListener('input', renderItemsTable);
+}
+function renderItemsTable(){
+  const q = $('#itq').value.trim(); const list = (q ? matchItems(q) : ITEMS.slice()).sort(sortItems);
+  $('#itCount').textContent = ITEMS.length + ' item';
+  $('#dl-nama').innerHTML = Array.from(new Set(ITEMS.map(i => i.nama))).map(n => `<option value="${esc(n)}">`).join('');
+  const tb = $('#itBody'); tb.innerHTML = '';
+  $('#itEmpty').innerHTML = ITEMS.length ? '' : '<div class="empty"><b>Database item masih kosong</b>Isi form di atas, atau muat contoh dari packing list 396.<br><button class="btn" id="btnSeed" type="button">Muat contoh item</button></div>';
+  const seed = $('#btnSeed'); if(seed) seed.addEventListener('click', async () => { try{ for(const it of SAMPLE_ITEMS) await Store.put('items', it.id, it); toast('Contoh item dimuat'); }catch(e){ toast('Gagal memuat contoh'); } });
+  for(const it of list){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(it.nama)}</td><td>${esc(it.style)}</td><td>${esc(it.size)}</td><td>${esc(katLabel(it.kategori)) || '-'}</td><td>${esc(it.kode)}</td><td class="r">${fmt2(it.netKg)}</td><td class="r">${fmt2(it.netLbs)}</td><td class="r">${fmt2(it.grossKg)}</td><td class="r">${fmt2(it.grossLbs)}</td><td class="r">${it.pcs ? fmt0(it.pcs) : '-'}</td><td class="r">${fmtP(it.harga)}${it.hargaUnit && it.hargaUnit !== 'kg' ? ' /' + esc(it.hargaUnit) : ''}</td><td style="white-space:nowrap"><button class="btn" type="button">Ubah</button> <button class="btn danger" type="button">Hapus</button></td>`;
+    const [bEdit, bDel] = $$('button', tr);
+    bEdit.addEventListener('click', () => loadItem(it));
+    confirmBtn(bDel, 'Klik lagi', async () => { try{ await Store.del('items', it.id); toast('Item dihapus'); }catch(e){ toast('Gagal menghapus'); } });
+    tb.appendChild(tr);
+  }
+}
+
+function renderArchive(){
+  const tb = $('#arBody'); tb.innerHTML = '';
+  const list = ARCH.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  $('#arEmpty').innerHTML = list.length ? '' : '<div class="empty"><b>Belum ada dokumen tersimpan</b>Susun dokumen di tab Buat dokumen, lalu klik Simpan ke arsip.</div>';
+  for(const a of list){
+    const t = model(a).tot;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(a.invNo)}</td><td>${esc(a.consignee && a.consignee.name)}</td><td>${esc(fmtDate(a.docDate))}</td><td class="r">${fmt0(t.ctn)}</td><td class="r">${fmt2(t.amt)}</td><td style="white-space:nowrap"><button class="btn" type="button">Buka</button> <button class="btn" type="button">Duplikat</button> <button class="btn danger" type="button">Hapus</button></td>`;
+    const [bOpen, bDup, bDel] = $$('button', tr);
+    bOpen.addEventListener('click', () => { D = JSON.parse(JSON.stringify(a)); D.sample = false; fillForm(); showView('make'); toast('Dokumen dibuka'); });
+    bDup.addEventListener('click', () => { D = JSON.parse(JSON.stringify(a)); D.id = null; D.sample = false; D.seq = ARCH.reduce((m, x) => Math.max(m, +x.seq || 0), 0) + 1; D.docDate = isoToday(); D.autoNo = true; refreshNumbersSilent(); fillForm(); showView('make'); toast('Dokumen diduplikat, periksa tanggal dan jumlahnya'); });
+    confirmBtn(bDel, 'Klik lagi', async () => { try{ await Store.del('invoices', a.id); if(D && D.id === a.id) D.id = null; toast('Dokumen dihapus'); }catch(e){ toast('Gagal menghapus'); } });
+    tb.appendChild(tr);
+  }
+}
+function refreshNumbersSilent(){ const n = autoNumbers(D, CO.mark); D.invNo = n.inv; D.plNo = n.pl; }
+
+const CO_KEYS = {name:'co-name', address:'co-addr', fda:'co-fda', mark:'co-mark', place:'co-place', signatory:'co-sign', signatory2:'co-sign2', htsRaw:'co-hts-raw', htsCooked:'co-hts-cooked', htsEbifry:'co-hts-ebifry', htsTempura:'co-hts-tempura', bank:'co-bank'};
+function fillCompany(){ for(const k in CO_KEYS) $('#' + CO_KEYS[k]).value = CO[k] || ''; }
+
+function safeName(s){ return String(s).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); }
+function browserDownload(filename, data){
+  const mime = /\.pdf$/i.test(filename) ? 'application/pdf' : /\.xlsx$/i.test(filename) ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/json';
+  const url = URL.createObjectURL(new Blob([data], {type:mime}));
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+async function saveFile(filename, data){
+  browserDownload(filename, data);
+  toast('File diunduh');
+}
+function buildPDF(kind){
+  let r; for(let k = 1; k >= 0.1; k *= 0.93){ r = buildPDFAt(kind, k); if(r.fits) break; }
+  return r.pdf;
+}
+function buildPDFAt(kind, k){
+  const J = window.jspdf && window.jspdf.jsPDF; if(!J) throw new Error('jsPDF tidak termuat');
+  const m = model(D, 'kat'), t = m.tot, pdf = new J({unit:'mm', format:[215, 330]});
+  const M = 20, PW = 215, LIM = 315, w = (PW - 2 * M) / 186; let y = 40;
+  const scaleCols = o => Object.fromEntries(Object.entries(o).map(([i, c]) => [i, c.cellWidth ? {...c, cellWidth:c.cellWidth * w} : c]));
+  const title = kind === 'pl' ? 'PACKING LIST' : 'COMMERCIAL INVOICE';
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15 * Math.max(k, .6)); pdf.text(title, PW/2, y, {align:'center'});
+  const tw = pdf.getTextWidth(title); pdf.setLineWidth(.4); pdf.line(PW/2 - tw/2, y + 1.3, PW/2 + tw/2, y + 1.3); y += 8 * Math.max(k, .6);
+  pdf.setFontSize(8.2 * k); pdf.setFont('helvetica', 'normal'); const LH = 3.35 * k;
+  for(const r of headerRows(kind)){
+    const vx = M + 52, labs = [r.label, r.label2].filter(Boolean);
+    const vals = r.lines.flatMap(l => Array.isArray(l) ? [l] : pdf.splitTextToSize(l, PW - 2 * M - 54));
+    labs.forEach((t, i) => pdf.text(t, M, y + i * LH));
+    pdf.text(':', M + 49, y);
+    vals.forEach((l, i) => { const yy = y + i * LH; if(Array.isArray(l)){ pdf.text(l[0], vx, yy); pdf.text(l[1], vx + 29, yy); pdf.text(l[2], vx + 75, yy); pdf.text(l[3], vx + 80, yy); } else pdf.text(l, vx, yy); });
+    y += Math.max(labs.length, vals.length) * LH + 1.1 * k;
+  }
+  const num = {halign:'right'}, ctr = {halign:'center'};
+  const tot = c => ({content:c, styles:{fontStyle:'bold', fillColor:[235,235,235]}});
+  let head, body = [], cols;
+  if(kind === 'pl'){
+    const po = D.contractNo || '-';
+    head = [[{content:'HTS Code', rowSpan:2}, {content:'Description of Goods', rowSpan:2}, {content:'Size', rowSpan:2}, {content:'Packing', rowSpan:2}, {content:'Qty (Ctn)', rowSpan:2}, {content:'Item Code', rowSpan:2}, {content:'PO/Contract', rowSpan:2}, {content:'Net Weight', colSpan:2}, {content:'Gross Weight', colSpan:2}], ['LBS','KGS','LBS','KGS']];
+    for(const g of m.groups) g.rows.forEach((r, i) => { const row = []; if(i === 0){ const st = {halign:'center', valign:'middle', fontStyle:'bold'}; row.push({content:htsOf(g.kat), rowSpan:g.rows.length, styles:st}, {content:g.nama, rowSpan:g.rows.length, styles:st}); } row.push(r.size, r.desc, fmt0(r.qty), r.kode || '-', po, fmt2(r.netLbs), fmt2(r.netKg), fmt2(r.grossLbs), fmt2(r.grossKg)); body.push(row); });
+    body.push([{content:'TOTAL', colSpan:4, styles:{halign:'center', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt0(t.ctn)), tot(''), tot(''), tot(fmt2(t.netLbs)), tot(fmt2(t.netKg)), tot(fmt2(t.grossLbs)), tot(fmt2(t.grossKg))]);
+    cols = {0:{cellWidth:14, halign:'center'}, 1:{cellWidth:28, halign:'center'}, 2:{cellWidth:12, halign:'center'}, 3:{cellWidth:22, halign:'center'}, 4:{cellWidth:12, halign:'right'}, 5:{cellWidth:14, halign:'center'}, 6:{cellWidth:16, halign:'center'}, 7:{cellWidth:17, halign:'right'}, 8:{cellWidth:17, halign:'right'}, 9:{cellWidth:17, halign:'right'}, 10:{cellWidth:17, halign:'right'}};
+  } else {
+    head = [['HTS Code','Description of Goods','Size','Packing Style','Qty (Ctn)','Net Weight (Kgs)','Lbs / Pcs','Unit Price (USD)', 'Total Amount USD' + (D.priceTerm ? ' ' + D.priceTerm : '')]];
+    for(const g of m.groups) g.rows.forEach((r, i) => { const row = []; if(i === 0){ const st = {halign:'center', valign:'middle', fontStyle:'bold'}; row.push({content:htsOf(g.kat), rowSpan:g.rows.length, styles:st}, {content:g.nama, rowSpan:g.rows.length, styles:st}); } row.push(r.size, r.desc, fmt0(r.qty), fmt2(r.netKg), lbsPcsText(r), fmtP(r.price) + ' /' + UL[r.priceUnit], fmt2(r.amt)); body.push(row); });
+    body.push([{content:'TOTAL', colSpan:4, styles:{halign:'center', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt0(t.ctn)), tot(fmt2(t.netKg)), tot(''), tot(''), tot(fmt2(t.amt))]);
+    m.charges.forEach(c => body.push([{content:c.name, colSpan:8, styles:{halign:'right'}}, fmt2(c.amt)]));
+    if(m.charges.length) body.push([{content:'TOTAL INVOICE', colSpan:8, styles:{halign:'right', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt2(m.grand))]);
+    cols = {0:{cellWidth:14, halign:'center'}, 1:{cellWidth:32, halign:'center'}, 2:ctr, 3:{cellWidth:24, halign:'center'}, 4:num, 5:num, 6:num, 7:num, 8:num};
+  }
+  const opts = { startY:y + 1, head, body, theme:'grid', margin:{left:M, right:M, top:40, bottom:15},
+    styles:{font:'helvetica', fontSize:7.6 * k, cellPadding:1.3 * k, lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17], valign:'middle'},
+    headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold', halign:'center'}, columnStyles:scaleCols(cols) };
+  if(typeof pdf.autoTable === 'function') pdf.autoTable(opts); else if(window.jspdf.autoTable) window.jspdf.autoTable(pdf, opts); else throw new Error('autoTable tidak termuat');
+  y = (pdf.lastAutoTable ? pdf.lastAutoTable.finalY : y + 40) + 6 * k;
+  pdf.setFontSize(8.2 * k); pdf.setFont('helvetica', 'normal');
+  if(kind === 'inv'){
+    const dcAll = dutyCalc(D, m);
+    if(dcAll){
+      const L = brokerLayout(dcAll), fill = {rc:[196,189,151], bt:[244,177,131]}, B = {fontStyle:'bold'};
+      const hd = [[{content:'Information for Custom Broker (USD)', colSpan:2, styles:{halign:'left'}}, ...L.blocks.map(b => ({content:b.title, colSpan:3, styles:{halign:'center', fillColor:fill[b.key]}}))]];
+      const bd = [];
+      for(let i = 0; i < L.n; i++){
+        const l = L.left[i], bl = l && (l[0] === 'Sub Total' || l[0] === 'FOB VALUE') ? B : {};
+        const row = l ? [{content:l[0], styles:bl}, {content:l[1], styles:{...bl, halign:'right'}}] : ['', ''];
+        for(const b of L.blocks){
+          const r = b.rows[i]; if(!r){ row.push('', '', ''); continue; }
+          const bs = r[0] === 'FOB VALUE' || r[0] === 'Total' ? B : {};
+          if(r[0] === 'FOB VALUE') row.push({content:r[0], styles:bs}, {content:r[2], colSpan:2, styles:{...bs, halign:'center'}});
+          else row.push({content:r[0], styles:bs}, {content:r[1], styles:{...bs, halign:'right'}}, {content:r[2], styles:{...bs, halign:'right'}});
+        }
+        bd.push(row);
+      }
+      const cs = {0:{cellWidth:44}, 1:{cellWidth:22}}; L.blocks.forEach((b, k2) => { cs[2 + k2 * 3] = {cellWidth:16}; cs[3 + k2 * 3] = {cellWidth:13}; cs[4 + k2 * 3] = {cellWidth:20}; });
+      const o2 = {startY:y - 2, theme:'grid', margin:{left:M, right:M, top:40, bottom:15}, head:hd, body:bd, columnStyles:scaleCols(cs),
+        headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold'},
+        styles:{font:'helvetica', fontSize:7.2 * k, cellPadding:1.2 * k, lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17]}};
+      if(typeof pdf.autoTable === 'function') pdf.autoTable(o2); else window.jspdf.autoTable(pdf, o2);
+      y = pdf.lastAutoTable.finalY + 6 * k;
+    }
+    pdf.setFont('helvetica', 'bold'); pdf.text('SAID: ' + sayUSD(m.grand), M, y, {maxWidth:PW - 2*M}); y += 7 * k; pdf.setFont('helvetica', 'normal');
+    const bank = bankLines();
+    const rows = [['Freight / Terms', [D.payNote || '-']], ['Payment by T/T to', bank.length ? bank : ['-']], ['In favor of', [CO.name]]];
+    for(const [lb, ls] of rows){ pdf.text(lb, M, y); pdf.text(':', M + 38, y); pdf.text(ls, M + 42, y); y += ls.length * LH + 1.4 * k; }
+    y += 2 * k;
+  }
+  const sg = Math.max(22, 36 * k);
+  pdf.text(footerText(), M, y + 4 * k); pdf.setFont('helvetica', 'bold'); pdf.text(signerName(), M, y + sg);
+  return {pdf, fits:pdf.getNumberOfPages() === 1 && y + sg + 4 <= LIM};
+}
+async function buildXLSX(){
+  const E = window.ExcelJS; if(!E) throw new Error('ExcelJS tidak termuat');
+  const wb = new E.Workbook(); wb.creator = CO.name; wb.created = new Date();
+  const thin = {style:'thin', color:{argb:'FF222222'}}; const box = {top:thin, left:thin, bottom:thin, right:thin};
+  const NUM = '#,##0.00', INT = '#,##0';
+  for(const kind of ['inv', 'pl']){
+    const ws = wb.addWorksheet(kind === 'pl' ? 'Packing List' : 'Invoice', {pageSetup:{paperSize:14, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:1, margins:{left:0.787, right:0.787, top:1.575, bottom:0.6, header:0.3, footer:0.3}}});
+    ws.columns = kind === 'pl' ? [{width:14},{width:34},{width:10},{width:22},{width:12},{width:14},{width:16},{width:14},{width:14},{width:14},{width:14}] : [{width:14},{width:40},{width:14},{width:24},{width:12},{width:15},{width:16},{width:15},{width:18}];
+    ws.font = {name:'Arial', size:10};
+    const NC = kind === 'pl' ? 11 : 9, LC = kind === 'pl' ? 1 : 2;
+    const m = model(D, 'kat');
+    let r = 1;
+    ws.mergeCells(r, 1, r, NC); const tc = ws.getCell(r, 1); tc.value = kind === 'pl' ? 'PACKING LIST' : 'COMMERCIAL INVOICE'; tc.font = {name:'Arial', size:15, bold:true, underline:true}; tc.alignment = {horizontal:'center'}; r += 2;
+    for(const h of headerRows(kind)){
+      const labs = [h.label, h.label2].filter(Boolean), n = Math.max(h.lines.length, labs.length), vs = LC + 2;
+      for(let i = 0; i < n; i++){
+        if(LC > 1) ws.mergeCells(r, 1, r, LC);
+        if(labs[i]) ws.getCell(r, 1).value = labs[i];
+        if(i === 0) ws.getCell(r, LC + 1).value = ':';
+        const ln = h.lines[i];
+        if(Array.isArray(ln)){
+          if(ln[1]){ ws.getCell(r, vs).value = ln[0]; ws.mergeCells(r, vs + 1, r, vs + 2); ws.getCell(r, vs + 1).value = ln[1]; }
+          else { ws.mergeCells(r, vs, r, vs + 2); ws.getCell(r, vs).value = ln[0]; }
+          ws.getCell(r, vs + 3).value = ln[2];
+          if(vs + 4 < NC) ws.mergeCells(r, vs + 4, r, NC);
+          ws.getCell(r, vs + 4).value = ln[3];
+        } else if(ln !== undefined){ ws.mergeCells(r, vs, r, NC); ws.getCell(r, vs).value = ln; }
+        r++;
+      }
+    }
+    r++;
+    const hdrFont = {name:'Arial', size:9, bold:true}; const hdrAl = {horizontal:'center', vertical:'middle', wrapText:true};
+    let first, last;
+    if(kind === 'pl'){
+      const boldF = {name:'Arial', size:10, bold:true};
+      ['HTS Code','Description of Goods','Size','Packing','Quantity (Ctn)','Item Code','PO/Contract'].forEach((v, i) => { ws.mergeCells(r, i + 1, r + 1, i + 1); ws.getCell(r, i + 1).value = v; });
+      ws.mergeCells(r, 8, r, 9); ws.getCell(r, 8).value = 'Net Weight'; ws.mergeCells(r, 10, r, 11); ws.getCell(r, 10).value = 'Gross Weight';
+      ['LBS','KGS','LBS','KGS'].forEach((v, i) => ws.getCell(r + 1, 8 + i).value = v);
+      for(let rr = r; rr <= r + 1; rr++) for(let c = 1; c <= 11; c++){ const cell = ws.getCell(rr, c); cell.font = hdrFont; cell.alignment = hdrAl; cell.border = box; }
+      r += 2; first = r;
+      for(const g of m.groups){
+        const g0 = r;
+        for(const x of g.rows){
+          ws.getCell(r, 3).value = x.size; ws.getCell(r, 4).value = x.desc; ws.getCell(r, 5).value = x.qty; ws.getCell(r, 6).value = x.kode || '-'; ws.getCell(r, 7).value = D.contractNo || '-';
+          ws.getCell(r, 8).value = {formula:x.autoNet ? `ROUND(I${r}*${LB},2)` : `ROUND(E${r}*${+x.perNetLbs.toFixed(5)},2)`, result:x.netLbs};
+          ws.getCell(r, 9).value = {formula:`ROUND(E${r}*${x.perNetKg},2)`, result:x.netKg};
+          ws.getCell(r, 10).value = {formula:x.autoGross ? `ROUND(K${r}*${LB},2)` : `ROUND(E${r}*${+x.perGrossLbs.toFixed(5)},2)`, result:x.grossLbs};
+          ws.getCell(r, 11).value = {formula:`ROUND(E${r}*${x.perGrossKg},2)`, result:x.grossKg};
+          for(let c = 1; c <= 11; c++){ const cell = ws.getCell(r, c); cell.border = box; if([3, 4, 6, 7].includes(c)) cell.alignment = {horizontal:'center'}; if(c === 5 || c >= 8) cell.alignment = {horizontal:'right'}; if(c === 5) cell.numFmt = INT; if(c >= 8) cell.numFmt = NUM; }
+          r++;
+        }
+        if(r - 1 > g0){ ws.mergeCells(g0, 1, r - 1, 1); ws.mergeCells(g0, 2, r - 1, 2); }
+        ws.getCell(g0, 1).value = htsOf(g.kat); ws.getCell(g0, 2).value = g.nama;
+        for(const c of [1, 2]){ const cell = ws.getCell(g0, c); cell.font = boldF; cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true}; }
+      }
+      last = r - 1;
+      ws.mergeCells(r, 1, r, 4); ws.getCell(r, 1).value = 'TOTAL'; ws.getCell(r, 1).alignment = {horizontal:'center'};
+      const tf = {5:['E', m.tot.ctn, INT], 8:['H', m.tot.netLbs, NUM], 9:['I', m.tot.netKg, NUM], 10:['J', m.tot.grossLbs, NUM], 11:['K', m.tot.grossKg, NUM]};
+      for(let c = 1; c <= 11; c++){ const cell = ws.getCell(r, c); cell.border = box; cell.font = boldF; if(tf[c]){ cell.value = {formula:`SUM(${tf[c][0]}${first}:${tf[c][0]}${last})`, result:tf[c][1]}; cell.numFmt = tf[c][2]; cell.alignment = {horizontal:'right'}; } }
+      r += 2;
+    } else {
+      const dcAll = dutyCalc(D, m), dutRowsG = {rc:[], bt:[]}, bold = {name:'Arial', size:10, bold:true}, colL = n => String.fromCharCode(64 + n);
+      ['HTS Code','Description of Goods','Size','Packing Style','Quantity (Ctn)','Net Weight (Kgs)','Lbs / Pcs','Unit Price (USD)','Total Amount USD' + (D.priceTerm ? ' ' + D.priceTerm : '')].forEach((v, i) => { const c = ws.getCell(r, i + 1); c.value = v; c.font = hdrFont; c.alignment = hdrAl; c.border = box; });
+      ws.getRow(r).height = 28; r++; first = r;
+      for(const g of m.groups){
+        const g0 = r;
+        for(const x of g.rows){
+          const gk = DGROUP[x.kategori]; if(gk) dutRowsG[gk].push(r);
+          ws.getCell(r, 3).value = x.size; ws.getCell(r, 4).value = x.desc; ws.getCell(r, 5).value = x.qty;
+          ws.getCell(r, 6).value = {formula:`ROUND(E${r}*${x.perNetKg},2)`, result:x.netKg};
+          const lbsF = x.autoNet ? `ROUND(F${r}*${LB},2)` : `ROUND(E${r}*${x.perNetLbs},2)`;
+          ws.getCell(r, 7).value = x.pcs > 0 ? {formula:`E${r}*${x.perPcs}`, result:x.pcs} : {formula:lbsF, result:x.netLbs};
+          ws.getCell(r, 8).value = x.price;
+          const basis = x.priceUnit === 'pcs' ? `E${r}*${x.perPcs}` : x.priceUnit === 'lbs' ? (x.autoNet ? `E${r}*${x.perNetKg}*${LB}` : `E${r}*${x.perNetLbs}`) : `E${r}*${x.perNetKg}`;
+          ws.getCell(r, 9).value = {formula:`(${basis})*H${r}`, result:x.amt};
+          for(let c = 1; c <= 9; c++){ const cell = ws.getCell(r, c); cell.border = box; if(c === 3 || c === 4) cell.alignment = {horizontal:'center'}; if(c >= 5) cell.alignment = {horizontal:'right'}; }
+          ws.getCell(r, 5).numFmt = INT; ws.getCell(r, 6).numFmt = NUM; ws.getCell(r, 9).numFmt = NUM;
+          ws.getCell(r, 7).numFmt = x.pcs > 0 ? '#,##0" pcs"' : '#,##0.00" lbs"'; ws.getCell(r, 8).numFmt = '#,##0.0000" /' + UL[x.priceUnit] + '"';
+          r++;
+        }
+        if(r - 1 > g0){ ws.mergeCells(g0, 1, r - 1, 1); ws.mergeCells(g0, 2, r - 1, 2); }
+        ws.getCell(g0, 1).value = htsOf(g.kat); ws.getCell(g0, 2).value = g.nama;
+        for(const c of [1, 2]){ const cell = ws.getCell(g0, c); cell.font = bold; cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true}; }
+      }
+      last = r - 1;
+      ws.mergeCells(r, 1, r, 4); ws.getCell(r, 1).value = 'TOTAL'; ws.getCell(r, 1).alignment = {horizontal:'center'};
+      const tf = {5:['E', m.tot.ctn, INT], 6:['F', m.tot.netKg, NUM], 9:['I', m.tot.amt, NUM]};
+      for(let c = 1; c <= 9; c++){ const cell = ws.getCell(r, c); cell.border = box; cell.font = bold; if(tf[c]){ cell.value = {formula:`SUM(${tf[c][0]}${first}:${tf[c][0]}${last})`, result:tf[c][1]}; cell.numFmt = tf[c][2]; cell.alignment = {horizontal:'right'}; } }
+      const totRow = r; r++;
+      if(m.charges.length){
+        const c1 = r;
+        for(const c of m.charges){ ws.mergeCells(r, 1, r, 8); ws.getCell(r, 1).value = c.name; ws.getCell(r, 1).alignment = {horizontal:'right'}; ws.getCell(r, 9).value = c.amt; ws.getCell(r, 9).numFmt = NUM; for(let k = 1; k <= 9; k++) ws.getCell(r, k).border = box; r++; }
+        ws.mergeCells(r, 1, r, 8); ws.getCell(r, 1).value = 'TOTAL INVOICE'; ws.getCell(r, 1).alignment = {horizontal:'right'};
+        ws.getCell(r, 9).value = {formula:`I${totRow}+SUM(I${c1}:I${r - 1})`, result:m.grand}; ws.getCell(r, 9).numFmt = NUM;
+        for(let k = 1; k <= 9; k++){ ws.getCell(r, k).border = box; ws.getCell(r, k).font = bold; } r++;
+      }
+      r++;
+      if(dcAll){
+        const R0 = r, b1 = R0 + 1, nRows = Math.max(7, ...dcAll.tables.map(t => t.list.length + 2)), starts = [4, 7];
+        const fillC = {rc:'FFC4BD97', bt:'FFF4B183'}, totCells = [];
+        ws.mergeCells(R0, 1, R0, 3); ws.getCell(R0, 1).value = 'Information for Custom Broker (USD)';
+        for(let c = 1; c <= 3; c++){ ws.getCell(R0, c).border = box; ws.getCell(R0, c).font = bold; }
+        const Pf = `(C${b1 + 1}+C${b1 + 2}+C${b1 + 3})/C${b1}`;
+        dcAll.tables.forEach((t, k) => {
+          const c0 = starts[k], n = t.list.length, tr = b1 + 1 + n, rl = colL(c0 + 1), al = colL(c0 + 2), fobC = `${rl}${b1}`;
+          ws.mergeCells(R0, c0, R0, c0 + 2); const hc = ws.getCell(R0, c0); hc.value = t.title; hc.alignment = {horizontal:'center'};
+          for(let c = c0; c <= c0 + 2; c++){ const cell = ws.getCell(R0, c); cell.border = box; cell.font = bold; cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:fillC[t.key]}}; }
+          const amtG = dutRowsG[t.key].length ? '(' + dutRowsG[t.key].map(x => 'I' + x).join('+') + ')' : '0';
+          ws.getCell(b1, c0).value = 'FOB VALUE'; ws.mergeCells(b1, c0 + 1, b1, c0 + 2);
+          ws.getCell(b1, c0 + 1).value = {formula:`ROUND((${amtG}-${amtG}*${Pf})/(1+${rl}${tr}),2)`, result:t.fob}; ws.getCell(b1, c0 + 1).alignment = {horizontal:'center'};
+          t.list.forEach((x, i) => { const rr = b1 + 1 + i; ws.getCell(rr, c0).value = x.name; ws.getCell(rr, c0 + 1).value = x.rate / 100; ws.getCell(rr, c0 + 2).value = {formula:`ROUND(${fobC}*${rl}${rr},2)`, result:x.amt}; });
+          ws.getCell(tr, c0).value = 'Total';
+          ws.getCell(tr, c0 + 1).value = n ? {formula:`SUM(${rl}${b1 + 1}:${rl}${tr - 1})`, result:t.rateSum / 100} : 0;
+          ws.getCell(tr, c0 + 2).value = {formula:`ROUND(${fobC}*${rl}${tr},2)`, result:t.totalDuty};
+          totCells.push(`${al}${tr}`);
+          for(let i = 0; i < nRows; i++){ const rr = b1 + i; ws.getCell(rr, c0 + 1).numFmt = '0.####%'; ws.getCell(rr, c0 + 2).numFmt = NUM;
+            for(let c = c0; c <= c0 + 2; c++){ const cell = ws.getCell(rr, c); cell.border = box; if(c > c0) cell.alignment = {horizontal:i === 0 ? 'center' : 'right'}; if(i === 0 || i === n + 1) cell.font = bold; } }
+          ws.getCell(b1, c0 + 1).numFmt = NUM;
+        });
+        const LL = ['Total Invoice DDP Port Value', 'Less Ocean Freight Prepaid', 'Insurance', 'Broker Fee', 'Sub Total', 'Total Duties', 'FOB VALUE'];
+        const LV = [{formula:`I${totRow}`, result:dcAll.total}, dcAll.freight, {formula:`ROUND(C${b1}*${dcAll.insPct / 100},2)`, result:dcAll.ins}, dcAll.broker,
+          {formula:`C${b1}-C${b1 + 1}-C${b1 + 2}-C${b1 + 3}`, result:dcAll.sub}, {formula:totCells.join('+'), result:dcAll.totalDuty}, {formula:`C${b1 + 4}-C${b1 + 5}`, result:dcAll.fob}];
+        for(let i = 0; i < nRows; i++){
+          const rr = b1 + i; ws.mergeCells(rr, 1, rr, 2);
+          if(i < 7){ ws.getCell(rr, 1).value = LL[i]; ws.getCell(rr, 3).value = LV[i]; }
+          ws.getCell(rr, 3).numFmt = NUM; ws.getCell(rr, 3).alignment = {horizontal:'right'};
+          for(let c = 1; c <= 3; c++){ const cell = ws.getCell(rr, c); cell.border = box; if(i === 4 || i === 6) cell.font = bold; }
+        }
+        r = b1 + nRows + 1;
+      }
+      ws.mergeCells(r, 1, r, NC); ws.getCell(r, 1).value = 'SAID: ' + sayUSD(m.grand); ws.getCell(r, 1).font = bold; r += 2;
+      const bank = bankLines();
+      const rows = [['Freight / Terms', [D.payNote || '-']], ['Payment by T/T to', bank.length ? bank : ['-']], ['In favor of', [CO.name]]];
+      for(const [lb, ls] of rows) ls.forEach((ln, i) => { if(i === 0){ ws.mergeCells(r, 1, r, 2); ws.getCell(r, 1).value = lb; ws.getCell(r, 3).value = ':'; } ws.mergeCells(r, 4, r, NC); ws.getCell(r, 4).value = ln; r++; });
+      r++;
+    }
+    ws.getCell(r, 1).value = footerText(); r += 6; ws.getCell(r, 1).value = signerName(); ws.getCell(r, 1).font = {name:'Arial', size:10, bold:true};
+  }
+  return wb.xlsx.writeBuffer();
+}
+
+function validDoc(){ if(model(D).tot.ctn <= 0){ toast('Isi jumlah karton minimal satu baris dulu'); return false; } return true; }
+async function saveDoc(){
+  if(!validDoc()) return false;
+  if(!D.id) D.id = 'd-' + String(D.seq || 0) + '-' + Date.now().toString(36);
+  D.updatedAt = Date.now(); D.sample = false;
+  try{ await Store.put('invoices', D.id, D); renderPaper(); toast('Tersimpan di arsip'); return true; }catch(e){ toast('Gagal menyimpan dokumen'); return false; }
+}
+
+const US_RE = /\b(USA|U\.S\.A?\.?|US|UNITED STATES|AMERICA)\b/;
+const ASIA_RE = /JAPAN|TOKYO|OSAKA|YOKOHAMA|NAGOYA|KOREA|BUSAN|CHINA|SHANGHAI|HONG ?KONG|TAIWAN|SINGAPORE|MALAYSIA|THAILAND|BANGKOK|VIETNAM|PHILIPPINES|MANILA|INDIA|CAMBODIA|MYANMAR|BRUNEI/;
+function regionOf(d){
+  if(d.us && d.us.on) return 'US';
+  const t = [d.destination, d.pod, d.eta && d.eta.port].join(' ').toUpperCase();
+  return US_RE.test(t) ? 'US' : ASIA_RE.test(t) ? 'Asia' : 'Lainnya';
+}
+function dashCalc(from, to){
+  const KO = [...Object.values(KAT), 'No Category'];
+  const o = {n:0, tot:{ctn:0, kg:0, amt:0}, reg:{US:{n:0, kg:0, amt:0}, Asia:{n:0, kg:0, amt:0}, Lainnya:{n:0, kg:0, amt:0}}, kat:{}, buyers:{}, months:{}, prods:{}, duty:{n:0, total:0, fob:0}, rows:[], KO};
+  KO.forEach(k => o.kat[k] = {kg:0, amt:0});
+  for(const d of ARCH){
+    if(d.docDate && ((from && d.docDate < from) || (to && d.docDate > to))) continue;
+    hydrateKat(d);
+    const m = model(d, 'kat'), t = m.tot; if(!t.amt && !t.ctn) continue;
+    const reg = regionOf(d), name = ((d.consignee && d.consignee.name) || '-').trim() || '-', ym = (d.docDate || '').slice(0, 7) || 'N/A';
+    o.n++; o.tot.ctn += t.ctn; o.tot.kg = r2(o.tot.kg + t.netKg); o.tot.amt = r2(o.tot.amt + t.amt);
+    const R = o.reg[reg]; R.n++; R.kg = r2(R.kg + t.netKg); R.amt = r2(R.amt + t.amt);
+    const katKg = {}, katAmt = {};
+    for(const g of m.groups){
+      const kg = r2(g.rows.reduce((a, x) => a + x.netKg, 0)), amt = r2(g.rows.reduce((a, x) => a + x.amt, 0));
+      const K = o.kat[g.nama] || (o.kat[g.nama] = {kg:0, amt:0}); K.kg = r2(K.kg + kg); K.amt = r2(K.amt + amt); katKg[g.nama] = kg; katAmt[g.nama] = amt;
+    }
+    const bk = name.toUpperCase(), B = o.buyers[bk] || (o.buyers[bk] = {name, n:0, kg:0, amt:0}); B.n++; B.kg = r2(B.kg + t.netKg); B.amt = r2(B.amt + t.amt);
+    const M = o.months[ym] || (o.months[ym] = {ym, n:0, kg:0, amt:0}); M.n++; M.kg = r2(M.kg + t.netKg); M.amt = r2(M.amt + t.amt);
+    for(const g of model(d).groups){ const P = o.prods[g.nama] || (o.prods[g.nama] = {name:g.nama, kg:0, amt:0}); P.kg = r2(P.kg + g.rows.reduce((a, x) => a + x.netKg, 0)); P.amt = r2(P.amt + g.rows.reduce((a, x) => a + x.amt, 0)); }
+    let duty = 0; const dcd = d.us && d.us.on ? dutyCalc(d, model(d)) : null; if(dcd){ duty = dcd.totalDuty; o.duty.n++; o.duty.total = r2(o.duty.total + dcd.totalDuty); o.duty.fob = r2(o.duty.fob + dcd.fob); }
+    o.rows.push({no:d.invNo || '', date:d.docDate || '', buyer:name, dest:d.destination || d.pod || '', reg, ctn:t.ctn, kg:t.netKg, amt:t.amt, duty, katKg, katAmt});
+  }
+  o.buyerList = Object.values(o.buyers).sort((a, b) => b.amt - a.amt);
+  o.monthList = Object.values(o.months).sort((a, b) => a.ym < b.ym ? -1 : 1);
+  o.prodList = Object.values(o.prods).sort((a, b) => b.kg - a.kg);
+  o.rows.sort((a, b) => a.date < b.date ? -1 : 1);
+  return o;
+}
+function renderDash(){
+  const el = $('#dsBody'); if(!el) return;
+  const o = dashCalc($('#ds-from').value, $('#ds-to').value);
+  if(!o.n){ el.innerHTML = '<div class="card"><p class="hint" style="margin:0">Belum ada invoice di arsip untuk periode ini. Simpan dokumen ke arsip dulu, lalu data muncul di sini.</p></div>'; return; }
+  const kpi = (l, v) => `<div class="kpi"><small>${l}</small><b>${v}</b></div>`;
+  const bars = (rows, key, fmt) => { const mx = Math.max(...rows.map(x => x[key]), 0); return rows.map(x => `<tr><td>${esc(x.label)}</td><td style="width:28%"><div class="dbar" style="width:${mx ? x[key] / mx * 100 : 0}%"></div></td><td class="r">${fmt(x[key])}</td>${x.extra || ''}</tr>`).join(''); };
+  const katRows = o.KO.filter(k => o.kat[k].kg || o.kat[k].amt).map(k => ({label:k, kg:o.kat[k].kg, amt:o.kat[k].amt, extra:`<td class="r">${o.kat[k].kg ? fmt2(o.kat[k].amt / o.kat[k].kg) : '-'}</td>`}));
+  const pct = (v, t) => t ? ' (' + (v / t * 100).toFixed(1) + '%)' : '';
+  const mmx = Math.max(...o.monthList.map(x => x.amt), 0);
+  const regRows = ['US', 'Asia', 'Lainnya'].map(k => `<tr><td>${k}</td><td class="r">${o.reg[k].n}</td><td class="r">${fmt2(o.reg[k].kg)}</td><td class="r">${fmt2(o.reg[k].amt)}</td></tr>`).join('');
+  el.innerHTML = `<div class="kpis">${kpi('Total shipment', o.n)}${kpi('Shipment US', o.reg.US.n)}${kpi('Shipment Asia', o.reg.Asia.n)}${o.reg.Lainnya.n ? kpi('Shipment lainnya', o.reg.Lainnya.n) : ''}${kpi('Total amount (USD)', fmt2(o.tot.amt))}${kpi('Total net kg', fmt2(o.tot.kg))}${kpi('Total karton', fmt0(o.tot.ctn))}${kpi('Rata-rata USD / shipment', fmt2(o.tot.amt / o.n))}</div>
+  <div class="dgrid">
+    <div class="card"><h2>Total kilo per kategori</h2><div class="tablebox"><table class="data"><thead><tr><th>Kategori</th><th></th><th class="r">Net kg</th></tr></thead><tbody>${bars(katRows.map(x => ({...x, extra:''})), 'kg', v => fmt2(v) + pct(v, o.tot.kg))}</tbody></table></div></div>
+    <div class="card"><h2>Total amount per kategori</h2><div class="tablebox"><table class="data"><thead><tr><th>Kategori</th><th></th><th class="r">USD</th><th class="r">USD/kg</th></tr></thead><tbody>${bars(katRows, 'amt', v => fmt2(v) + pct(v, o.tot.amt))}</tbody></table></div></div>
+    <div class="card"><h2>Per region</h2><div class="tablebox"><table class="data"><thead><tr><th>Region</th><th class="r">Shipment</th><th class="r">Net kg</th><th class="r">USD</th></tr></thead><tbody>${regRows}</tbody></table></div><p class="hint">Region US = dicentang "Shipment ke US" atau Destination/POD berisi USA. Asia dikenali dari nama negara/kota di Destination atau POD. Sisanya masuk Lainnya.</p></div>
+    <div class="card"><h2>Tren bulanan (USD)</h2><div class="trend">${o.monthList.map(x => `<div class="col"><span>${fmt0(x.amt)}</span><div class="dbar" style="height:${mmx ? Math.max(2, x.amt / mmx * 100 * .72) : 0}%"></div><span>${esc(x.ym)}<br>${x.n} shp</span></div>`).join('')}</div></div>
+    <div class="card"><h2>5 produk terlaris (by kg)</h2><div class="tablebox"><table class="data"><thead><tr><th>Produk</th><th></th><th class="r">Net kg</th><th class="r">USD</th></tr></thead><tbody>${bars(o.prodList.slice(0, 5).map(p => ({label:p.name, kg:p.kg, extra:`<td class="r">${fmt2(p.amt)}</td>`})), 'kg', fmt2)}</tbody></table></div></div>
+    ${o.duty.n ? `<div class="card"><h2>Duty shipment US</h2><div class="kpis"><div class="kpi"><small>Shipment dengan duty</small><b>${o.duty.n}</b></div><div class="kpi"><small>Total duty (USD)</small><b>${fmt2(o.duty.total)}</b></div><div class="kpi"><small>Total FOB (USD)</small><b>${fmt2(o.duty.fob)}</b></div></div></div>` : ''}
+    <div class="card" style="grid-column:1/-1"><h2>Per buyer (semua)</h2><div class="tablebox"><table class="data"><thead><tr><th>Buyer</th><th class="r">Total shipment</th><th class="r">Total amount (USD)</th><th class="r">% dari total</th></tr></thead><tbody>${o.buyerList.map(b => `<tr><td>${esc(b.name)}</td><td class="r">${b.n}</td><td class="r">${fmt2(b.amt)}</td><td class="r">${o.tot.amt ? (b.amt / o.tot.amt * 100).toFixed(1) : '0.0'}%</td></tr>`).join('')}<tr style="font-weight:700"><td>Total</td><td class="r">${o.n}</td><td class="r">${fmt2(o.tot.amt)}</td><td class="r">100%</td></tr></tbody></table></div></div>
+  </div>`;
+}
+async function buildDashXLSX(o, from, to){
+  const E = window.ExcelJS; if(!E) throw new Error('ExcelJS tidak termuat');
+  const wb = new E.Workbook(); wb.creator = CO.name; wb.created = new Date();
+  const NUM = '#,##0.00', GEN = '#,##0.##';
+  const hd = row => row.eachCell(c => { c.font = {name:'Arial', size:10, bold:true}; c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFDFE6D3'}}; c.border = {bottom:{style:'thin'}}; });
+  const table = (ws, title, cols, rows, fm) => { if(title) ws.addRow([title]).font = {name:'Arial', size:11, bold:true}; hd(ws.addRow(cols)); rows.forEach(r => { const x = ws.addRow(r); fm.forEach((f, i) => { if(f) x.getCell(i + 1).numFmt = f; }); }); ws.addRow([]); };
+  const ws = wb.addWorksheet('Ringkasan'); ws.columns = [{width:44},{width:16},{width:16},{width:16}]; ws.font = {name:'Arial', size:10};
+  ws.addRow(['Dashboard Invoice - ' + CO.name]).font = {name:'Arial', size:14, bold:true};
+  ws.addRow(['Periode', from || 'Awal', 's/d', to || 'Sekarang']); ws.addRow([]);
+  table(ws, 'Ringkasan', ['Metrik', 'Nilai'], [['Total shipment', o.n], ['Shipment US', o.reg.US.n], ['Shipment Asia', o.reg.Asia.n], ['Shipment lainnya', o.reg.Lainnya.n], ['Total karton', o.tot.ctn], ['Total net kg', o.tot.kg], ['Total amount (USD)', o.tot.amt], ['Rata-rata USD per shipment', o.n ? r2(o.tot.amt / o.n) : 0], ['Total duty US (USD)', o.duty.total], ['Total FOB shipment US (USD)', o.duty.fob]], [null, GEN]);
+  table(ws, 'Per region', ['Region', 'Shipment', 'Net kg', 'USD'], ['US', 'Asia', 'Lainnya'].map(k => [k, o.reg[k].n, o.reg[k].kg, o.reg[k].amt]), [null, GEN, NUM, NUM]);
+  table(ws, 'Per kategori', ['Kategori', 'Net kg', 'USD', 'USD/kg'], o.KO.filter(k => o.kat[k].kg || o.kat[k].amt).map(k => [k, o.kat[k].kg, o.kat[k].amt, o.kat[k].kg ? r2(o.kat[k].amt / o.kat[k].kg) : 0]), [null, NUM, NUM, NUM]);
+  const wbuy = wb.addWorksheet('Buyer'); wbuy.columns = [{width:40},{width:16},{width:16},{width:18},{width:14}];
+  hd(wbuy.addRow(['Buyer', 'Total shipment', 'Net kg', 'Total amount (USD)', '% dari total']));
+  o.buyerList.forEach((b, i) => { const x = wbuy.addRow([b.name, b.n, b.kg, b.amt, null]); x.getCell(3).numFmt = NUM; x.getCell(4).numFmt = NUM; x.getCell(5).value = {formula:`IF(D${o.buyerList.length + 2}=0,0,D${i + 2}/D${o.buyerList.length + 2})`, result:o.tot.amt ? b.amt / o.tot.amt : 0}; x.getCell(5).numFmt = '0.0%'; });
+  const bt = wbuy.addRow(['Total']); bt.font = {name:'Arial', size:10, bold:true};
+  [['B', 2, GEN], ['C', 3, NUM], ['D', 4, NUM]].forEach(([L, c, f]) => { bt.getCell(c).value = {formula:`SUM(${L}2:${L}${o.buyerList.length + 1})`}; bt.getCell(c).numFmt = f; });
+  const wm = wb.addWorksheet('Bulanan'); wm.columns = [{width:14},{width:12},{width:16},{width:16}];
+  table(wm, null, ['Bulan', 'Shipment', 'Net kg', 'USD'], o.monthList.map(x => [x.ym, x.n, x.kg, x.amt]), [null, GEN, NUM, NUM]);
+  const wp = wb.addWorksheet('Produk'); wp.columns = [{width:44},{width:16},{width:16}];
+  table(wp, null, ['Produk', 'Net kg', 'USD'], o.prodList.map(p => [p.name, p.kg, p.amt]), [null, NUM, NUM]);
+  const wd = wb.addWorksheet('Data invoice'); const ko = o.KO.filter(k => o.kat[k].kg || o.kat[k].amt);
+  wd.columns = [{width:16},{width:12},{width:30},{width:24},{width:10},{width:10},{width:14},{width:14},{width:14}, ...ko.flatMap(() => [{width:16},{width:16}])];
+  hd(wd.addRow(['No. invoice', 'Tanggal', 'Buyer', 'Destination', 'Region', 'Karton', 'Net kg', 'USD', 'Duty US (USD)', ...ko.flatMap(k => ['kg - ' + k, 'USD - ' + k])]));
+  o.rows.forEach(x => { const r = wd.addRow([x.no, x.date, x.buyer, x.dest, x.reg, x.ctn, x.kg, x.amt, x.duty, ...ko.flatMap(k => [x.katKg[k] || 0, x.katAmt[k] || 0])]); for(let c = 7; c <= 9 + ko.length * 2; c++) r.getCell(c).numFmt = NUM; });
+  const a = 2, b = wd.rowCount, tr = wd.addRow(['TOTAL']); tr.font = {name:'Arial', size:10, bold:true};
+  for(let c = 6; c <= 9 + ko.length * 2; c++){ const L = wd.getColumn(c).letter; tr.getCell(c).value = {formula:`SUM(${L}${a}:${L}${b})`}; tr.getCell(c).numFmt = NUM; }
+  wd.views = [{state:'frozen', ySplit:1}];
+  return wb.xlsx.writeBuffer();
+}
+function showView(v){
+  $$('#nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v ? 'true' : 'false'));
+  ['make','items','archive','dash','profile'].forEach(n => { $('#v-' + n).hidden = n !== v; });
+  if(v === 'dash') renderDash();
+}
+function wire(){
+  if(wired) return; wired = true;
+  $$('#nav button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+  $$('[data-doc]').forEach(b => b.addEventListener('click', () => { ACTIVE = b.dataset.doc; $$('[data-doc]').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false')); renderPaper(); }));
+  $$('[data-k]', $('#v-make')).forEach(el => el.addEventListener('input', () => onFormChange(el)));
+  $('#ds-from').addEventListener('change', renderDash); $('#ds-to').addEventListener('change', renderDash);
+  $('#dsReset').addEventListener('click', () => { $('#ds-from').value = ''; $('#ds-to').value = ''; renderDash(); });
+  $('#dsXlsx').addEventListener('click', async () => { try{ const f = $('#ds-from').value, t = $('#ds-to').value, o = dashCalc(f, t); if(!o.n){ toast('Belum ada data untuk diunduh'); return; } const buf = await buildDashXLSX(o, f, t); await saveFile('Dashboard Invoice ' + isoToday() + '.xlsx', buf); }catch(e){ toast('Gagal membuat Excel dashboard'); } });
+  $('#q').addEventListener('input', renderResults);
+  $('#results').addEventListener('click', e => { const b = e.target.closest('.res'); if(b) addItem(b.dataset.id); });
+  $('#buyerSel').addEventListener('change', e => { const b = BUY.find(x => x.id === e.target.value); if(b){ D.consignee.name = b.name; D.consignee.address = b.address || ''; if(b.signatory) D.signatory = b.signatory; if(Array.isArray(b.charges) && b.charges.length){ D.charges = b.charges.map(c => ({name:c.name, amt:c.amt})); renderCharges(); } renderSigners(); $('#f-cname').value = D.consignee.name; $('#f-caddr').value = D.consignee.address; renderPaper(); } });
+  $('#btnSaveBuyer').addEventListener('click', async () => {
+    const n = D.consignee.name.trim(); if(!n){ toast('Isi nama consignee dulu'); return; }
+    try{ await Store.put('buyers', slug(n), {name:n, address:D.consignee.address, signatory:D.signatory || CO.signatory || '', charges:(D.charges || []).filter(c => c.name || c.amt).map(c => ({name:c.name || '', amt:+c.amt || 0}))}); toast('Buyer disimpan'); }catch(e){ toast('Gagal menyimpan buyer'); }
+  });
+  $('#btnAuto').addEventListener('click', () => { D.autoNo = true; refreshNumbers(); $('#autoHint').textContent = 'Nomor mengikuti no. urut dan tanggal.'; renderPaper(); });
+  $('#btnNew').addEventListener('click', () => { D = blankDoc(); fillForm(); toast('Dokumen baru'); });
+  $('#btnBlank').addEventListener('click', () => { D = blankDoc(); fillForm(); });
+  $('#btnSave').addEventListener('click', saveDoc);
+  $('#btnPdf').addEventListener('click', async () => {
+    if(!validDoc()) return;
+    try{ const pdf = buildPDF(ACTIVE); await saveFile(safeName((ACTIVE === 'pl' ? 'Packing List ' : 'Invoice ') + (ACTIVE === 'pl' ? D.plNo : D.invNo)) + '.pdf', pdf.output('arraybuffer')); }
+    catch(e){ toast('PDF gagal dibuat: ' + (e.message || 'error')); }
+  });
+  $('#btnXlsx').addEventListener('click', async () => {
+    if(!validDoc()) return;
+    try{ const buf = await buildXLSX(); await saveFile(safeName('Invoice dan PL ' + D.invNo) + '.xlsx', buf); }
+    catch(e){ toast('Excel gagal dibuat: ' + (e.message || 'error')); }
+  });
+  $('#coSave').addEventListener('click', async () => {
+    const c = {}; for(const k in CO_KEYS) c[k] = $('#' + CO_KEYS[k]).value.trim();
+    if(!c.name){ toast('Nama perusahaan wajib diisi'); return; }
+    try{ await Store.put('config', 'company', c); toast('Profil disimpan'); }catch(e){ toast('Gagal menyimpan profil'); }
+  });
+  $('#btnBackup').addEventListener('click', async () => {
+    const data = {version:1, exportedAt:new Date().toISOString(), company:CO, items:ITEMS, buyers:BUY, invoices:ARCH};
+    await saveFile('Cadangan Dokumen Ekspor ' + isoToday() + '.json', JSON.stringify(data, null, 1));
+  });
+  $('#btnRestore').addEventListener('click', () => $('#fileRestore').click());
+  $('#fileRestore').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    try{
+      const j = JSON.parse(await f.text()); const okId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(id); let n = 0;
+      for(const [col, arr] of [['items', j.items], ['buyers', j.buyers], ['invoices', j.invoices]]) for(const row of (Array.isArray(arr) ? arr : [])){ if(okId(row.id)){ await Store.put(col, row.id, row); n++; } }
+      if(j.company && typeof j.company === 'object' && j.company.name) await Store.put('config', 'company', j.company);
+      toast('Cadangan dipulihkan: ' + n + ' data');
+    }catch(err){ toast('File cadangan tidak valid'); }
+  });
+  $('#f-signer').addEventListener('change', e => { D.signatory = e.target.value; renderPaper(); });
+  $('#us-on').addEventListener('change', e => { ensureUS(); D.us.on = e.target.checked; if(D.us.on && !D.us.duties.length) DEFAULT_DUTIES.forEach(x => D.us.duties.push({name:x[0], rate:x[1]})); renderDuties(); renderPaper(); });
+  [['us-freight','freight'], ['us-broker','broker'], ['us-ins','insPct']].forEach(([id, k]) => $('#' + id).addEventListener('input', e => { ensureUS(); D.us[k] = e.target.value === '' ? 0 : +e.target.value; renderPaper(); }));
+  $('#chAdd').addEventListener('click', () => { ensureCharges(); D.charges.push({name:'', amt:0}); renderCharges(); renderPaper(); });
+  $('#dutyAdd').addEventListener('click', () => { ensureUS(); D.us.duties.push({name:'', rate:0}); renderDuties(); renderPaper(); });
+  $('#dutyAdd2').addEventListener('click', () => { ensureUS(); D.us.duties2.push({name:'', rate:0}); renderDuties(); renderPaper(); });
+  $('#btnLogout').addEventListener('click', async () => { if(Store.auth) await Store.auth.signOut(); });
+  wireItemForm();
+}
+
+function clearWatchers(){
+  unsubs.forEach(fn => { try{ fn(); }catch(e){} });
+  unsubs = [];
+}
+
+function startApp(isCloud){
+  if(!D) D = sampleDoc();
+  wire();
+  clearWatchers();
+  setChip(isCloud ? 'cloud' : 'local');
+  const onErr = () => setChip('err');
+
+  unsubs.push(Store.watch('items', rows => {
+    ITEMS = rows;
+    if(!isCloud && !ITEMS.length && !Store.readLocal('seeded').done){
+      SAMPLE_ITEMS.forEach(i => { const b = Object.assign({}, i); delete b.id; Store.local.items[i.id] = b; });
+      Store.writeLocal('items'); try{ localStorage.setItem('wkb-dok:seeded', '{"done":1}'); }catch(e){}
+      ITEMS = Store.list('items');
+    }
+    renderResults(); renderItemsTable();
+  }, onErr));
+
+  unsubs.push(Store.watch('invoices', rows => { ARCH = rows; renderArchive(); renderDash(); }, onErr));
+  unsubs.push(Store.watch('buyers', rows => { BUY = rows; renderBuyers(); }, onErr));
+  unsubs.push(Store.watch('config', rows => {
+    const c = rows.find(r => r.id === 'company');
+    CO = Object.assign({}, DEFAULT_CO, c ? c : {}); delete CO.id;
+    for(const k of ['htsRaw','htsCooked','htsEbifry','htsTempura']) if(!CO[k]) CO[k] = DEFAULT_CO[k];
+    fillCompany(); if(D && D.autoNo) refreshNumbersSilent(); fillForm();
+  }, onErr));
+}
+
+function boot(){
+  Store.init();
+  if(!Store.auth){
+    $('#authGate').hidden = true;
+    $('#appShell').hidden = false;
+    startApp(false);
+    return;
+  }
+
+  $('#loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('#loginErr').textContent = '';
+    const email = $('#loginEmail').value.trim();
+    const pass = $('#loginPass').value;
+    const btn = $('#loginBtn');
+    btn.disabled = true; btn.textContent = 'Memeriksa…';
+    try{
+      await Store.auth.signInWithEmailAndPassword(email, pass);
+    }catch(err){
+      $('#loginErr').textContent = 'Login gagal: periksa kembali email, password, serta status Email/Password di Firebase Authentication.';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Masuk';
+    }
+  });
+
+  Store.auth.onAuthStateChanged(user => {
+    if(user){
+      $('#authGate').hidden = true;
+      $('#appShell').hidden = false;
+      startApp(true);
+    }else{
+      clearWatchers();
+      $('#appShell').hidden = true;
+      $('#authGate').hidden = false;
+    }
+  });
+}
+
+boot();
+})();
+</script>
+</body></html>
