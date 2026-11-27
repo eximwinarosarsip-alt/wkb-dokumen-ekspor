@@ -841,10 +841,10 @@ function buildPDFAt(kind, k){
     body.push([{content:'TOTAL', colSpan:4, styles:{halign:'center', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt0(t.ctn)), tot(fmt2(t.netKg)), tot(''), tot(''), tot(fmt2(t.amt))]);
     m.charges.forEach(c => body.push([{content:c.name, colSpan:8, styles:{halign:'right'}}, fmt2(c.amt)]));
     if(m.charges.length) body.push([{content:'TOTAL INVOICE', colSpan:8, styles:{halign:'right', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt2(m.grand))]);
-    cols = {0:{cellWidth:13, halign:'center'}, 1:{cellWidth:35, halign:'center'}, 2:{cellWidth:15, halign:'center'}, 3:{cellWidth:31, halign:'center'}, 4:{cellWidth:14, halign:'right'}, 5:{cellWidth:17, halign:'right'}, 6:{cellWidth:21, halign:'right'}, 7:{cellWidth:21, halign:'right'}, 8:{cellWidth:19, halign:'right'}};
+    ccols = {0:{cellWidth:13, halign:'center'}, 1:{cellWidth:33, halign:'center'}, 2:{cellWidth:15, halign:'center'}, 3:{cellWidth:30, halign:'center'}, 4:{cellWidth:14, halign:'right'}, 5:{cellWidth:17, halign:'right'}, 6:{cellWidth:24, halign:'right'}, 7:{cellWidth:21, halign:'right'}, 8:{cellWidth:19, halign:'right'}};
   }
   const opts = { startY:y + 1, head, body, theme:'grid', margin:{left:M, right:M, top:40, bottom:15},
-    styles:{font:'helvetica', fontSize:7.2 * k, cellPadding:{top:1.1 * k, bottom:1.1 * k, left:0.9 * k, right:0.9 * k}, overflow:'linebreak', lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17], valign:'middle'},
+    styles:{font:'helvetica', fontSize:6.9 * k, cellPadding:{top:1.1 * k, bottom:1.1 * k, left:0.9 * k, right:0.9 * k}, overflow:'linebreak', lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17], valign:'middle'},
     headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold', halign:'center', overflow:'linebreak'}, columnStyles:scaleCols(cols) };
   if(typeof pdf.autoTable === 'function') pdf.autoTable(opts); else if(window.jspdf.autoTable) window.jspdf.autoTable(pdf, opts); else throw new Error('autoTable tidak termuat');
   y = (pdf.lastAutoTable ? pdf.lastAutoTable.finalY : y + 40) + 6 * k;
