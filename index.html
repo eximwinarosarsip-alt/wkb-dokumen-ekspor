@@ -94,10 +94,6 @@ table.doc th,table.doc td{border:1px solid var(--paper-line);padding:3px 6px}
 table.doc th{font-weight:700;text-align:center;font-size:9.5px}
 table.doc td.r{text-align:right;white-space:nowrap}
 table.doc td.c{text-align:center}
-table.doc td:nth-child(3),
-table.doc td:nth-child(4),
-table.doc td:nth-child(7),
-table.doc td:nth-child(8){white-space:nowrap}
 table.doc tr.grp td{font-weight:700;text-decoration:underline;border-bottom:none;padding-top:9px}
 table.doc tr.tot td{font-weight:700;border-top:2px solid var(--paper-line)}
 .paper .say{margin:10px 0 4px;font-weight:700}
@@ -116,7 +112,7 @@ table.data td.r,table.data th.r{text-align:right;font-family:var(--font-mono);fo
 .sect{display:grid;gap:14px}
 .sect-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .sect-head h2{font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:calc(100% - 32px)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:calc(100% - 32px)}
 #toast.show{opacity:1}
 .chk{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500}.chk input{width:auto}
 table.doc.duty{width:100%;margin:12px 0 0}
@@ -126,11 +122,28 @@ table.doc.duty{width:100%;margin:12px 0 0}
 .dbar{height:8px;background:var(--cherry);border-radius:4px;min-width:2px}
 .trend{display:flex;align-items:flex-end;gap:8px;height:150px;overflow-x:auto;padding-top:8px}.trend .col{flex:1;min-width:44px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--muted)}.trend .col .dbar{width:70%}
 .dfilter{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}.dfilter .f{min-width:140px}
+.auth-wrap{min-height:80vh;display:grid;place-items:center;padding:24px 0}
+.auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;display:grid;gap:12px}
+.auth-err{color:var(--bad);font-size:12.5px;min-height:18px}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 </style>
 </head><body>
 
-<div class="wrap">
+<div id="authGate" class="auth-wrap">
+  <form id="loginForm" class="auth-card">
+    <div class="brand">
+      <span class="mark">WKB</span>
+      <div><h1>Login Tim Ekspor</h1><p>PT. Winaros Kawula Bahari</p></div>
+    </div>
+    <p class="hint" style="margin:0">Masuk menggunakan akun email &amp; password tim yang terdaftar di Firebase Authentication.</p>
+    <div class="f"><label for="loginEmail">Email tim</label><input id="loginEmail" type="email" required autocomplete="username"></div>
+    <div class="f"><label for="loginPass">Password</label><input id="loginPass" type="password" required autocomplete="current-password"></div>
+    <div id="loginErr" class="auth-err" role="alert"></div>
+    <button id="loginBtn" class="btn primary" type="submit">Masuk</button>
+  </form>
+</div>
+
+<div id="appShell" class="wrap" hidden>
 <header class="top">
   <div class="brand"><span class="mark">WKB</span><div><h1>Dokumen Ekspor</h1><p>Invoice dan packing list udang beku</p></div></div>
   <nav id="nav" role="tablist" aria-label="Menu">
@@ -141,6 +154,7 @@ table.doc.duty{width:100%;margin:12px 0 0}
     <button role="tab" data-view="profile" aria-selected="false">Profil</button>
   </nav>
   <span id="mode" class="chip">memuat…</span>
+  <button id="btnLogout" class="btn" type="button">Keluar</button>
 </header>
 
 <main>
@@ -338,6 +352,9 @@ table.doc.duty{width:100%;margin:12px 0 0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 /*PURE_START*/
 const LB = 2.2046;
@@ -442,7 +459,16 @@ function brokerLayout(dc){
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
-/* ---------- contoh data dari PL 396 ---------- */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBCj87c1uW342Z_BRzC_nUzLM5G1xFbZ_4",
+  authDomain: "wkb-dokumen-ekspor.firebaseapp.com",
+  projectId: "wkb-dokumen-ekspor",
+  storageBucket: "wkb-dokumen-ekspor.firebasestorage.app",
+  messagingSenderId: "884992923953",
+  appId: "1:884992923953:web:0d798ec491990a7487b810",
+  measurementId: "G-N02M8T71Q2"
+};
+
 const STANDALONE = true;
 const SAMPLE_ITEMS = [
   ['i-sushi-90-6170','White Vannamei Sushi Ebi','Without Tail 40 x 90 gr','61/70',3.6,4.32,0,7.80],
@@ -458,9 +484,8 @@ const SAMPLE_ITEMS = [
 const SAMPLE_QTY = {'i-sushi-90-6170':[164,76],'i-sushi-20-L':[373],'i-sushi-200-M':[230],'i-sushi-2hm':[42],'i-sushi-3hm':[89],'i-sushi-4hm':[114],'i-sushi-5hm':[79],'i-sushi-6hm':[31],'i-cooked-10f':[188]};
 const DEFAULT_CO = { name:'PT. WINAROS KAWULA BAHARI', address:'JL. Raya Cangkring Malang KM.39,4 Cangkring Malang\nBeji-Pasuruan 67154\nJawa Timur-Indonesia', fda:'19969465160', mark:'WKB', place:'PASURUAN', signatory:'RONNY WIBISONO', signatory2:'', htsRaw:'030617', htsCooked:'160521', htsEbifry:'160521', htsTempura:'160521', bank:'' };
 
-/* ---------- state ---------- */
 let ITEMS = [], ARCH = [], BUY = [], CO = Object.assign({}, DEFAULT_CO);
-let D = null, ACTIVE = 'inv', EDIT_ITEM = null, firstLoad = {};
+let D = null, ACTIVE = 'inv', EDIT_ITEM = null, wired = false, unsubs = [];
 let uid = 0; const newKey = () => 'l' + Date.now().toString(36) + (uid++);
 
 function isoToday(){ const t = new Date(); const p = n => String(n).padStart(2,'0'); return t.getFullYear() + '-' + p(t.getMonth()+1) + '-' + p(t.getDate()); }
@@ -485,41 +510,59 @@ function sampleDoc(){
   const n = autoNumbers(d, CO.mark); d.invNo = n.inv; d.plNo = n.pl; return d;
 }
 
-/* ---------- penyimpanan: database artifact, atau browser bila tidak tersedia ---------- */
 const Store = {
-  cloud:null, local:{}, cbs:{},
-  async init(){ try{ if(window.claude && window.claude.use) this.cloud = await window.claude.use('db'); }catch(e){ this.cloud = null; } },
+  db:null, auth:null, local:{}, cbs:{},
+  init(){
+    if(window.firebase && FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey){
+      if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      this.auth = firebase.auth();
+      this.db = firebase.firestore();
+    }
+  },
   readLocal(n){ try{ return JSON.parse(localStorage.getItem('wkb-dok:' + n) || '{}'); }catch(e){ return {}; } },
   writeLocal(n){ try{ localStorage.setItem('wkb-dok:' + n, JSON.stringify(this.local[n])); }catch(e){} },
-  list(n){ return Object.keys(this.local[n]).map(id => Object.assign({}, this.local[n][id], {id})); },
+  list(n){ return Object.keys(this.local[n] || {}).map(id => Object.assign({}, this.local[n][id], {id})); },
   watch(n, cb, err){
-    if(this.cloud){
-      return this.cloud.collection(n).onSnapshot(s => cb(s.docs.map(d => Object.assign({}, d.data(), {id:d.id})), s.metadata), e => err && err(e));
+    if(this.db && this.auth && this.auth.currentUser){
+      return this.db.collection(n).onSnapshot(
+        s => cb(s.docs.map(d => Object.assign({}, d.data(), {id:d.id})), s.metadata),
+        e => err && err(e)
+      );
     }
-    this.local[n] = this.readLocal(n); this.cbs[n] = cb; cb(this.list(n), {fromCache:false}); return function(){};
+    this.local[n] = this.readLocal(n);
+    this.cbs[n] = cb;
+    cb(this.list(n), {fromCache:false});
+    return function(){};
   },
   async put(n, id, data){
-    const body = JSON.parse(JSON.stringify(data)); delete body.id;
-    if(this.cloud) return this.cloud.doc(n + '/' + id).set(body);
-    this.local[n][id] = body; this.writeLocal(n); this.cbs[n](this.list(n), {fromCache:false});
+    const body = JSON.parse(JSON.stringify(data));
+    delete body.id;
+    if(this.db && this.auth && this.auth.currentUser){
+      return this.db.collection(n).doc(id).set(body, {merge:false});
+    }
+    this.local[n][id] = body;
+    this.writeLocal(n);
+    if(this.cbs[n]) this.cbs[n](this.list(n), {fromCache:false});
   },
   async del(n, id){
-    if(this.cloud) return this.cloud.doc(n + '/' + id).delete();
-    delete this.local[n][id]; this.writeLocal(n); this.cbs[n](this.list(n), {fromCache:false});
+    if(this.db && this.auth && this.auth.currentUser){
+      return this.db.collection(n).doc(id).delete();
+    }
+    delete this.local[n][id];
+    this.writeLocal(n);
+    if(this.cbs[n]) this.cbs[n](this.list(n), {fromCache:false});
   }
 };
 
-/* ---------- util UI ---------- */
 let toastT = null;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
 function getPath(o, p){ return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
 function setPath(o, p, v){ const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => a[k], o); t[last] = v; }
 function setChip(kind){
   const c = $('#mode');
-  if(kind === 'cloud'){ c.textContent = 'tersimpan di database'; c.className = 'chip ok'; }
+  if(kind === 'cloud'){ c.textContent = 'tersinkron firestore'; c.className = 'chip ok'; }
   else if(kind === 'local'){ c.textContent = 'mode lokal: hanya di browser ini'; c.className = 'chip warn'; }
-  else if(kind === 'wait'){ c.textContent = 'menunggu database…'; c.className = 'chip warn'; }
-  else { c.textContent = 'database tidak terjangkau'; c.className = 'chip warn'; }
+  else { c.textContent = 'cek akses database'; c.className = 'chip warn'; }
 }
 function confirmBtn(btn, label, fn){
   let armed = false, t = null; const orig = btn.textContent;
@@ -529,7 +572,6 @@ function confirmBtn(btn, label, fn){
   });
 }
 
-/* ---------- baris header dokumen (dipakai preview, PDF, Excel) ---------- */
 function headerRows(kind){
   const d = D, R = [];
   R.push(kind === 'pl' ? {label:'Packing List No.', lines:[or(d.plNo)]} : {label:'Invoice No.', lines:[or(d.invNo)]});
@@ -550,7 +592,6 @@ function bankLines(){ return splitLines(CO.bank); }
 function signerName(){ return D.signatory || CO.signatory || ''; }
 function footerText(){ return (CO.place || D.place || '') + ': ' + fmtDate(D.docDate); }
 
-/* ---------- preview kertas ---------- */
 function paperHTML(kind){
   const m = model(D, 'kat'), t = m.tot;
   const kv = '<div class="kv">' + headerRows(kind).map(r => `<div class="k">${esc(r.label)}${r.label2 ? '<br>' + esc(r.label2) : ''}</div><div class="c">:</div><div class="v">${r.lines.map(l => Array.isArray(l) ? '<div class="c4">' + l.map(c => `<span>${esc(c)}</span>`).join('') + '</div>' : '<div>' + esc(l) + '</div>').join('')}</div>`).join('') + '</div>';
@@ -586,12 +627,10 @@ function renderPaper(){
   const has = t.ctn > 0;
   $('#btnPdf').disabled = !has; $('#btnXlsx').disabled = !has;
   $('#banner').hidden = !D.sample;
-  const tt = model(D).tot;
-  $('#sum').innerHTML = [['Karton', fmt0(tt.ctn)], ['Net (kg)', fmt2(tt.netKg)], ['Gross (kg)', fmt2(tt.grossKg)], ['Total (USD)', fmt2(tt.amt + (model(D).grand - tt.amt))]].map(a => `<div><small>${a[0]}</small><b>${a[1]}</b></div>`).join('');
+  $('#sum').innerHTML = [['Karton', fmt0(t.ctn)], ['Net (kg)', fmt2(t.netKg)], ['Gross (kg)', fmt2(t.grossKg)], ['Total (USD)', fmt2(model(D).grand)]].map(a => `<div><small>${a[0]}</small><b>${a[1]}</b></div>`).join('');
   refreshUsSum();
 }
 
-/* ---------- form ---------- */
 function fillForm(){
   $$('[data-k]', $('#v-make')).forEach(el => { const v = getPath(D, el.dataset.k); el.value = v == null ? '' : v; });
   $('#autoHint').textContent = D.autoNo ? 'Nomor mengikuti no. urut dan tanggal.' : 'Nomor diisi manual.';
@@ -706,7 +745,6 @@ function refreshUsSum(){
   el.textContent = dc.tables.map(t => `${t.key === 'rc' ? 'Raw + Cooked' : 'Ebi Fry + Tempura'}: dasar USD ${fmt2(t.base)} · FOB USD ${fmt2(t.fob)} · duty USD ${fmt2(t.totalDuty)}`).join('  |  ') + (dc.unk ? ` · ${dc.unk} baris belum punya kategori (tidak dihitung)` : '');
 }
 
-/* ---------- buyer ---------- */
 function renderBuyers(){
   const s = $('#buyerSel'); const cur = s.value;
   s.innerHTML = '<option value="">' + (BUY.length ? 'Pilih buyer tersimpan…' : 'Belum ada buyer tersimpan') + '</option>' + BUY.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
@@ -714,7 +752,6 @@ function renderBuyers(){
 }
 function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'buyer'; }
 
-/* ---------- database item ---------- */
 function itField(k){ return $('#it-' + k); }
 const IT_KEYS = ['nama','style','size','kategori','kode','pcs','harga','hargaUnit','netKg','netLbs','grossKg','grossLbs'];
 function resetItemForm(){
@@ -763,7 +800,6 @@ function renderItemsTable(){
   }
 }
 
-/* ---------- arsip ---------- */
 function renderArchive(){
   const tb = $('#arBody'); tb.innerHTML = '';
   const list = ARCH.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -781,11 +817,9 @@ function renderArchive(){
 }
 function refreshNumbersSilent(){ const n = autoNumbers(D, CO.mark); D.invNo = n.inv; D.plNo = n.pl; }
 
-/* ---------- profil ---------- */
 const CO_KEYS = {name:'co-name', address:'co-addr', fda:'co-fda', mark:'co-mark', place:'co-place', signatory:'co-sign', signatory2:'co-sign2', htsRaw:'co-hts-raw', htsCooked:'co-hts-cooked', htsEbifry:'co-hts-ebifry', htsTempura:'co-hts-tempura', bank:'co-bank'};
 function fillCompany(){ for(const k in CO_KEYS) $('#' + CO_KEYS[k]).value = CO[k] || ''; }
 
-/* ---------- unduh ---------- */
 function safeName(s){ return String(s).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); }
 function browserDownload(filename, data){
   const mime = /\.pdf$/i.test(filename) ? 'application/pdf' : /\.xlsx$/i.test(filename) ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/json';
@@ -794,16 +828,8 @@ function browserDownload(filename, data){
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 async function saveFile(filename, data){
-  try{
-    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-    if(!dl){
-      if(STANDALONE){ browserDownload(filename, data); toast('File diunduh'); }
-      else toast('Unduhan tidak tersedia di tampilan ini');
-      return;
-    }
-    const r = await dl.save({filename, data});
-    toast(r && r.status === 'delivered' ? 'File dikirim' : 'File disimpan');
-  }catch(e){ if(e && e.code === 'declined') return; toast('Gagal menyimpan file' + (e && e.code ? ' (' + e.code + ')' : '')); }
+  browserDownload(filename, data);
+  toast('File diunduh');
 }
 function buildPDF(kind){
   let r; for(let k = 1; k >= 0.1; k *= 0.93){ r = buildPDFAt(kind, k); if(r.fits) break; }
@@ -812,7 +838,7 @@ function buildPDF(kind){
 function buildPDFAt(kind, k){
   const J = window.jspdf && window.jspdf.jsPDF; if(!J) throw new Error('jsPDF tidak termuat');
   const m = model(D, 'kat'), t = m.tot, pdf = new J({unit:'mm', format:[215, 330]});
-  const M = 20, PW = 215, LIM = 315, w = (PW - 2 * M) / 186; let y = 40;
+  const M = 15, PW = 215, LIM = 315, w = (PW - 2 * M) / 186; let y = 50;
   const scaleCols = o => Object.fromEntries(Object.entries(o).map(([i, c]) => [i, c.cellWidth ? {...c, cellWidth:c.cellWidth * w} : c]));
   const title = kind === 'pl' ? 'PACKING LIST' : 'COMMERCIAL INVOICE';
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15 * Math.max(k, .6)); pdf.text(title, PW/2, y, {align:'center'});
@@ -826,7 +852,7 @@ function buildPDFAt(kind, k){
     vals.forEach((l, i) => { const yy = y + i * LH; if(Array.isArray(l)){ pdf.text(l[0], vx, yy); pdf.text(l[1], vx + 29, yy); pdf.text(l[2], vx + 75, yy); pdf.text(l[3], vx + 80, yy); } else pdf.text(l, vx, yy); });
     y += Math.max(labs.length, vals.length) * LH + 1.1 * k;
   }
-  const grp = (n, span) => [{content:n, colSpan:span, styles:{fontStyle:'bold', halign:'left', fillColor:[245,245,245]}}];
+  const num = {halign:'right'}, ctr = {halign:'center'};
   const tot = c => ({content:c, styles:{fontStyle:'bold', fillColor:[235,235,235]}});
   let head, body = [], cols;
   if(kind === 'pl'){
@@ -834,18 +860,18 @@ function buildPDFAt(kind, k){
     head = [[{content:'HTS Code', rowSpan:2}, {content:'Description of Goods', rowSpan:2}, {content:'Size', rowSpan:2}, {content:'Packing', rowSpan:2}, {content:'Qty (Ctn)', rowSpan:2}, {content:'Item Code', rowSpan:2}, {content:'PO/Contract', rowSpan:2}, {content:'Net Weight', colSpan:2}, {content:'Gross Weight', colSpan:2}], ['LBS','KGS','LBS','KGS']];
     for(const g of m.groups) g.rows.forEach((r, i) => { const row = []; if(i === 0){ const st = {halign:'center', valign:'middle', fontStyle:'bold'}; row.push({content:htsOf(g.kat), rowSpan:g.rows.length, styles:st}, {content:g.nama, rowSpan:g.rows.length, styles:st}); } row.push(r.size, r.desc, fmt0(r.qty), r.kode || '-', po, fmt2(r.netLbs), fmt2(r.netKg), fmt2(r.grossLbs), fmt2(r.grossKg)); body.push(row); });
     body.push([{content:'TOTAL', colSpan:4, styles:{halign:'center', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt0(t.ctn)), tot(''), tot(''), tot(fmt2(t.netLbs)), tot(fmt2(t.netKg)), tot(fmt2(t.grossLbs)), tot(fmt2(t.grossKg))]);
-    cols = {0:{cellWidth:13, halign:'center'}, 1:{cellWidth:30, halign:'center'}, 2:{cellWidth:12, halign:'center'}, 3:{cellWidth:27, halign:'center'}, 4:{cellWidth:12, halign:'right'}, 5:{cellWidth:13, halign:'center'}, 6:{cellWidth:15, halign:'center'}, 7:{cellWidth:15.5, halign:'right'}, 8:{cellWidth:15.5, halign:'right'}, 9:{cellWidth:16, halign:'right'}, 10:{cellWidth:16, halign:'right'}};
+    cols = {0:{cellWidth:14, halign:'center'}, 1:{cellWidth:28, halign:'center'}, 2:{cellWidth:12, halign:'center'}, 3:{cellWidth:22, halign:'center'}, 4:{cellWidth:12, halign:'right'}, 5:{cellWidth:14, halign:'center'}, 6:{cellWidth:16, halign:'center'}, 7:{cellWidth:17, halign:'right'}, 8:{cellWidth:17, halign:'right'}, 9:{cellWidth:17, halign:'right'}, 10:{cellWidth:17, halign:'right'}};
   } else {
     head = [['HTS Code','Description of Goods','Size','Packing Style','Qty (Ctn)','Net Weight (Kgs)','Lbs / Pcs','Unit Price (USD)', 'Total Amount USD' + (D.priceTerm ? ' ' + D.priceTerm : '')]];
     for(const g of m.groups) g.rows.forEach((r, i) => { const row = []; if(i === 0){ const st = {halign:'center', valign:'middle', fontStyle:'bold'}; row.push({content:htsOf(g.kat), rowSpan:g.rows.length, styles:st}, {content:g.nama, rowSpan:g.rows.length, styles:st}); } row.push(r.size, r.desc, fmt0(r.qty), fmt2(r.netKg), lbsPcsText(r), fmtP(r.price) + ' /' + UL[r.priceUnit], fmt2(r.amt)); body.push(row); });
     body.push([{content:'TOTAL', colSpan:4, styles:{halign:'center', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt0(t.ctn)), tot(fmt2(t.netKg)), tot(''), tot(''), tot(fmt2(t.amt))]);
     m.charges.forEach(c => body.push([{content:c.name, colSpan:8, styles:{halign:'right'}}, fmt2(c.amt)]));
     if(m.charges.length) body.push([{content:'TOTAL INVOICE', colSpan:8, styles:{halign:'right', fontStyle:'bold', fillColor:[235,235,235]}}, tot(fmt2(m.grand))]);
-    ccols = {0:{cellWidth:13, halign:'center'}, 1:{cellWidth:33, halign:'center'}, 2:{cellWidth:15, halign:'center'}, 3:{cellWidth:30, halign:'center'}, 4:{cellWidth:14, halign:'right'}, 5:{cellWidth:17, halign:'right'}, 6:{cellWidth:24, halign:'right'}, 7:{cellWidth:21, halign:'right'}, 8:{cellWidth:19, halign:'right'}};
+    cols = {0:{cellWidth:13, halign:'center'}, 1:{cellWidth:33, halign:'center'}, 2:{cellWidth:15, halign:'center'}, 3:{cellWidth:30, halign:'center'}, 4:{cellWidth:14, halign:'right'}, 5:{cellWidth:17, halign:'right'}, 6:{cellWidth:24, halign:'right'}, 7:{cellWidth:21, halign:'right'}, 8:{cellWidth:19, halign:'right'}};
   }
   const opts = { startY:y + 1, head, body, theme:'grid', margin:{left:M, right:M, top:40, bottom:15},
     styles:{font:'helvetica', fontSize:6.9 * k, cellPadding:{top:1.1 * k, bottom:1.1 * k, left:0.9 * k, right:0.9 * k}, overflow:'linebreak', lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17], valign:'middle'},
-    headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold', halign:'center', overflow:'linebreak'}, columnStyles:scaleCols(cols) };
+    headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold', halign:'center'}, columnStyles:scaleCols(cols) };
   if(typeof pdf.autoTable === 'function') pdf.autoTable(opts); else if(window.jspdf.autoTable) window.jspdf.autoTable(pdf, opts); else throw new Error('autoTable tidak termuat');
   y = (pdf.lastAutoTable ? pdf.lastAutoTable.finalY : y + 40) + 6 * k;
   pdf.setFontSize(8.2 * k); pdf.setFont('helvetica', 'normal');
@@ -866,15 +892,10 @@ function buildPDFAt(kind, k){
         }
         bd.push(row);
       }
-      const cs = {0:{cellWidth:44}, 1:{cellWidth:22}};
-      L.blocks.forEach((b, k2) => {
-        cs[2 + k2 * 3] = {cellWidth:15};
-        cs[3 + k2 * 3] = {cellWidth:15};
-        cs[4 + k2 * 3] = {cellWidth:20};
-      });
+      const cs = {0:{cellWidth:44}, 1:{cellWidth:22}}; L.blocks.forEach((b, k2) => { cs[2 + k2 * 3] = {cellWidth:16}; cs[3 + k2 * 3] = {cellWidth:13}; cs[4 + k2 * 3] = {cellWidth:20}; });
       const o2 = {startY:y - 2, theme:'grid', margin:{left:M, right:M, top:40, bottom:15}, head:hd, body:bd, columnStyles:scaleCols(cs),
         headStyles:{fillColor:[255,255,255], textColor:[17,17,17], fontStyle:'bold'},
-        styles:{font:'helvetica', fontSize:7.0 * k, cellPadding:{top:1.0 * k, bottom:1.0 * k, left:0.9 * k, right:0.9 * k}, lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17]}};
+        styles:{font:'helvetica', fontSize:7.2 * k, cellPadding:1.2 * k, lineColor:[40,40,40], lineWidth:.2, textColor:[17,17,17]}};
       if(typeof pdf.autoTable === 'function') pdf.autoTable(o2); else window.jspdf.autoTable(pdf, o2);
       y = pdf.lastAutoTable.finalY + 6 * k;
     }
@@ -920,7 +941,7 @@ async function buildXLSX(){
     }
     r++;
     const hdrFont = {name:'Arial', size:9, bold:true}; const hdrAl = {horizontal:'center', vertical:'middle', wrapText:true};
-    let first, last; const groupRows = [];
+    let first, last;
     if(kind === 'pl'){
       const boldF = {name:'Arial', size:10, bold:true};
       ['HTS Code','Description of Goods','Size','Packing','Quantity (Ctn)','Item Code','PO/Contract'].forEach((v, i) => { ws.mergeCells(r, i + 1, r + 1, i + 1); ws.getCell(r, i + 1).value = v; });
@@ -1029,7 +1050,6 @@ async function buildXLSX(){
   return wb.xlsx.writeBuffer();
 }
 
-/* ---------- aksi ---------- */
 function validDoc(){ if(model(D).tot.ctn <= 0){ toast('Isi jumlah karton minimal satu baris dulu'); return false; } return true; }
 async function saveDoc(){
   if(!validDoc()) return false;
@@ -1037,7 +1057,7 @@ async function saveDoc(){
   D.updatedAt = Date.now(); D.sample = false;
   try{ await Store.put('invoices', D.id, D); renderPaper(); toast('Tersimpan di arsip'); return true; }catch(e){ toast('Gagal menyimpan dokumen'); return false; }
 }
-/* ---------- dashboard ---------- */
+
 const US_RE = /\b(USA|U\.S\.A?\.?|US|UNITED STATES|AMERICA)\b/;
 const ASIA_RE = /JAPAN|TOKYO|OSAKA|YOKOHAMA|NAGOYA|KOREA|BUSAN|CHINA|SHANGHAI|HONG ?KONG|TAIWAN|SINGAPORE|MALAYSIA|THAILAND|BANGKOK|VIETNAM|PHILIPPINES|MANILA|INDIA|CAMBODIA|MYANMAR|BRUNEI/;
 function regionOf(d){
@@ -1130,6 +1150,7 @@ function showView(v){
   if(v === 'dash') renderDash();
 }
 function wire(){
+  if(wired) return; wired = true;
   $$('#nav button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
   $$('[data-doc]').forEach(b => b.addEventListener('click', () => { ACTIVE = b.dataset.doc; $$('[data-doc]').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false')); renderPaper(); }));
   $$('[data-k]', $('#v-make')).forEach(el => el.addEventListener('input', () => onFormChange(el)));
@@ -1182,32 +1203,81 @@ function wire(){
   $('#chAdd').addEventListener('click', () => { ensureCharges(); D.charges.push({name:'', amt:0}); renderCharges(); renderPaper(); });
   $('#dutyAdd').addEventListener('click', () => { ensureUS(); D.us.duties.push({name:'', rate:0}); renderDuties(); renderPaper(); });
   $('#dutyAdd2').addEventListener('click', () => { ensureUS(); D.us.duties2.push({name:'', rate:0}); renderDuties(); renderPaper(); });
+  $('#btnLogout').addEventListener('click', async () => { if(Store.auth) await Store.auth.signOut(); });
   wireItemForm();
 }
 
-/* ---------- mulai ---------- */
-async function boot(){
-  D = sampleDoc(); wire(); fillCompany(); fillForm(); renderResults(); renderItemsTable(); renderArchive(); renderBuyers();
-  await Store.init();
-  setChip(Store.cloud ? 'wait' : 'local');
-  const waitT = setTimeout(() => { if(Store.cloud) setChip('wait'); }, 10000);
-  const got = () => { clearTimeout(waitT); setChip(Store.cloud ? 'cloud' : 'local'); };
-  const err = () => setChip('err');
-  Store.watch('items', rows => {
+function clearWatchers(){
+  unsubs.forEach(fn => { try{ fn(); }catch(e){} });
+  unsubs = [];
+}
+
+function startApp(isCloud){
+  if(!D) D = sampleDoc();
+  wire();
+  clearWatchers();
+  setChip(isCloud ? 'cloud' : 'local');
+  const onErr = () => setChip('err');
+
+  unsubs.push(Store.watch('items', rows => {
     ITEMS = rows;
-    if(!Store.cloud && !ITEMS.length && !Store.readLocal('seeded').done){
+    if(!isCloud && !ITEMS.length && !Store.readLocal('seeded').done){
       SAMPLE_ITEMS.forEach(i => { const b = Object.assign({}, i); delete b.id; Store.local.items[i.id] = b; });
       Store.writeLocal('items'); try{ localStorage.setItem('wkb-dok:seeded', '{"done":1}'); }catch(e){}
       ITEMS = Store.list('items');
     }
-    got(); renderResults(); renderItemsTable();
-  }, err);
-  Store.watch('invoices', rows => { ARCH = rows; renderArchive(); renderDash(); }, err);
-  Store.watch('buyers', rows => { BUY = rows; renderBuyers(); }, err);
-  Store.watch('config', rows => { const c = rows.find(r => r.id === 'company'); CO = Object.assign({}, DEFAULT_CO, c ? c : {}); delete CO.id; for(const k of ['htsRaw','htsCooked','htsEbifry','htsTempura']) if(!CO[k]) CO[k] = DEFAULT_CO[k]; fillCompany(); if(D.autoNo) refreshNumbersSilent(); fillForm(); }, err);
+    renderResults(); renderItemsTable();
+  }, onErr));
+
+  unsubs.push(Store.watch('invoices', rows => { ARCH = rows; renderArchive(); renderDash(); }, onErr));
+  unsubs.push(Store.watch('buyers', rows => { BUY = rows; renderBuyers(); }, onErr));
+  unsubs.push(Store.watch('config', rows => {
+    const c = rows.find(r => r.id === 'company');
+    CO = Object.assign({}, DEFAULT_CO, c ? c : {}); delete CO.id;
+    for(const k of ['htsRaw','htsCooked','htsEbifry','htsTempura']) if(!CO[k]) CO[k] = DEFAULT_CO[k];
+    fillCompany(); if(D && D.autoNo) refreshNumbersSilent(); fillForm();
+  }, onErr));
 }
+
+function boot(){
+  Store.init();
+  if(!Store.auth){
+    $('#authGate').hidden = true;
+    $('#appShell').hidden = false;
+    startApp(false);
+    return;
+  }
+
+  $('#loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('#loginErr').textContent = '';
+    const email = $('#loginEmail').value.trim();
+    const pass = $('#loginPass').value;
+    const btn = $('#loginBtn');
+    btn.disabled = true; btn.textContent = 'Memeriksa…';
+    try{
+      await Store.auth.signInWithEmailAndPassword(email, pass);
+    }catch(err){
+      $('#loginErr').textContent = 'Login gagal: periksa kembali email, password, serta status Email/Password di Firebase Authentication.';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Masuk';
+    }
+  });
+
+  Store.auth.onAuthStateChanged(user => {
+    if(user){
+      $('#authGate').hidden = true;
+      $('#appShell').hidden = false;
+      startApp(true);
+    }else{
+      clearWatchers();
+      $('#appShell').hidden = true;
+      $('#authGate').hidden = false;
+    }
+  });
+}
+
 boot();
 })();
 </script>
-
 </body></html>
