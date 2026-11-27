@@ -1,361 +1,706 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{color-scheme:light}html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Dokumen Ekspor WKB</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
-<style>
-/* Layout: app bar with four views. "Buat" = form column beside a live paper preview; other views are single-column tables. Paper stays white in both themes because it is a printed document. */
-:root{
-  --bg:#ffffff; --surface:#ffffff; --surface2:#f6f8f3; --ink:#2a1820; --muted:#6f6368; --line:#d8dfcc;
-  --accent:#879a73; --accent-ink:#670626; --accent-text:#670626; --accent-soft:#e7ecdf; --tint:#dfe6d3; --tint-line:#c3cfb2;
-  --cherry:#670626; --cherry-ink:#d3dec4; --cherry-text:#670626; --cherry-soft:#f7e9ee;
-  --warn:#8a5a14; --warn-soft:#fdeccd; --good:#2f7d5b; --bad:#b3261e;
-  --paper:#ffffff; --paper-ink:#111111; --paper-line:#222222; --paper-mute:#666666; --paper-bg:#dfe6d5;
-  --font-ui:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --font-mono:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --font-doc:'Montserrat',Arial,Helvetica,sans-serif;
-}
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.45;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
-h1,h2,h3{margin:0;text-wrap:balance}
-button,input,select,textarea{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
-.wrap{max-width:1360px;margin:0 auto}
-.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:16px 0 14px}
-.brand{display:flex;align-items:center;gap:12px;min-width:0}
-.mark{font-family:var(--font-mono);font-weight:600;letter-spacing:.08em;background:var(--cherry);color:var(--cherry-ink);padding:6px 8px;border-radius:4px;font-size:13px}
-.brand h1{font-size:18px;font-weight:600;letter-spacing:-.01em}
-.brand p{margin:0;color:var(--muted);font-size:12.5px}
-nav{display:flex;flex-wrap:wrap;gap:4px;margin-left:auto}
-nav button{border:1px solid transparent;background:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500}
-nav button[aria-selected="true"]{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
-nav button:hover{color:var(--ink)}
-.chip{font-family:var(--font-mono);font-size:11.5px;padding:4px 8px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted);white-space:nowrap}
-.chip.ok{color:var(--good)} .chip.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
-.banner{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:var(--cherry-soft);color:var(--cherry-text);border-radius:6px;padding:10px 14px;margin-bottom:14px}
-.banner span{flex:1 1 320px;min-width:0}
-.work{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:16px;align-items:start}
-@media (max-width:1000px){.work{grid-template-columns:minmax(0,1fr)}}
-.stack{display:grid;gap:14px;min-width:0}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
-.card h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cherry);margin-right:8px;vertical-align:1px}
-.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--muted);margin-bottom:12px}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-@media (max-width:480px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.span2{grid-column:1/-1}
-.f{display:grid;gap:4px;min-width:0}
-.f label{font-size:11.5px;color:var(--muted);font-weight:500}
-input,select,textarea{width:100%;min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
-textarea{resize:vertical}
-input[type=number]{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:500;white-space:nowrap}
-.btn:hover{border-color:var(--accent-text)}
-.btn.primary{background:var(--cherry);color:var(--cherry-ink);border-color:var(--cherry)}
-.btn.primary:hover{filter:brightness(1.18)}
-.btn.danger{color:var(--bad)}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.results{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:236px;overflow:auto;scrollbar-color:var(--accent) transparent}
-.res{width:100%;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 10px;border:1px solid var(--tint-line);border-radius:6px;background:var(--tint);cursor:pointer}
-.res:hover{border-color:var(--accent-text)}
-.res b{font-weight:500;overflow-wrap:anywhere}
-.res small,.ld small{color:var(--muted);display:block;font-size:12px}
-.res em{font-style:normal;font-family:var(--font-mono);font-size:12px;color:var(--cherry-text);align-self:center}
-.hint{color:var(--muted);font-size:12.5px;margin:8px 0 0}
-.lines{width:100%;border-collapse:collapse;margin-top:12px}
-.lines th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-weight:500}
-.lines td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
-.lines .ld{overflow-wrap:anywhere}
-.lines input{padding:5px 6px;text-align:right}
-.lines td.n{width:84px}
-.lines td.p{width:104px}.lines select.pu{margin-top:4px;padding:4px 6px;width:100%}
-.x{border:none;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
-.x:hover{color:var(--bad)}
-.calc{font-family:var(--font-mono);color:var(--muted)}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
-.seg button{border:none;background:none;padding:7px 14px;cursor:pointer;font-weight:500;color:var(--muted)}
-.seg button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
-.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
-.sum div{background:var(--surface);padding:9px 12px;min-width:0}
-.sum small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.sum b{font-family:var(--font-mono);font-weight:500;font-size:15px;display:block;margin-top:2px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.paper-wrap{overflow-x:auto;background:var(--accent-soft);border-radius:8px;padding:14px}
-.paper{background:var(--paper);color:var(--paper-ink);font-family:var(--font-doc);font-size:10.2px;line-height:1.4;min-width:720px;max-width:900px;margin:0 auto;padding:30px 32px 36px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.paper h2{all:unset;display:block;text-align:center;font-weight:700;font-size:17px;letter-spacing:.04em;text-decoration:underline;margin-bottom:14px}
-.kv{display:grid;grid-template-columns:160px 12px minmax(0,1fr);row-gap:3px;margin-bottom:12px}
-.kv .c4{display:grid;grid-template-columns:9em 1fr 1em 1fr;column-gap:6px}.kv .k{font-weight:400}.kv .v{overflow-wrap:anywhere}
-table.doc{width:100%;border-collapse:collapse;table-layout:auto;font-variant-numeric:tabular-nums}
-table.doc th,table.doc td{border:1px solid var(--paper-line);padding:3px 6px}
-table.doc th{font-weight:700;text-align:center;font-size:9.5px}
-table.doc td.r{text-align:right;white-space:nowrap}
-table.doc td.c{text-align:center}
-table.doc tr.grp td{font-weight:700;text-decoration:underline;border-bottom:none;padding-top:9px}
-table.doc tr.tot td{font-weight:700;border-top:2px solid var(--paper-line)}
-.paper .say{margin:10px 0 4px;font-weight:700}
-.paper .pay{display:grid;grid-template-columns:160px 12px minmax(0,1fr);row-gap:2px;margin-top:8px}
-.paper .sig{margin-top:26px}
-.paper .sig b{display:block;margin-top:70px}
-.paper .ph{color:var(--paper-mute);font-style:italic}
-.tablebox{overflow-x:auto}
-table.data{width:100%;border-collapse:collapse;min-width:760px}
-table.data th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
-table.data td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
-table.data td.r,table.data th.r{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.empty{border:1px dashed var(--line);border-radius:8px;padding:22px;text-align:center;color:var(--muted)}
-.empty b{display:block;color:var(--ink);margin-bottom:4px}
-.empty .btn{margin-top:10px}
-.sect{display:grid;gap:14px}
-.sect-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.sect-head h2{font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:calc(100% - 32px)}
-#toast.show{opacity:1}
-.chk{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500}.chk input{width:auto}
-table.doc.duty{width:100%;margin:12px 0 0}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}.kpi small{display:block;color:var(--muted);font-size:12px}.kpi b{font-size:20px;display:block;margin-top:2px}
-.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
-.dbar{height:8px;background:var(--cherry);border-radius:4px;min-width:2px}
-.trend{display:flex;align-items:flex-end;gap:8px;height:150px;overflow-x:auto;padding-top:8px}.trend .col{flex:1;min-width:44px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--muted)}.trend .col .dbar{width:70%}
-.dfilter{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}.dfilter .f{min-width:140px}
-.auth-wrap{min-height:80vh;display:grid;place-items:center;padding:24px 0}
-.auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;display:grid;gap:12px}
-.auth-err{color:var(--bad);font-size:12.5px;min-height:18px}
-@media (prefers-reduced-motion:reduce){#toast{transition:none}}
-</style>
-</head><body>
-
-<div id="authGate" class="auth-wrap">
-  <form id="loginForm" class="auth-card">
-    <div class="brand">
-      <span class="mark">WKB</span>
-      <div><h1>Login Tim Ekspor</h1><p>PT. Winaros Kawula Bahari</p></div>
-    </div>
-    <p class="hint" style="margin:0">Masuk menggunakan akun email &amp; password tim yang terdaftar di Firebase Authentication.</p>
-    <div class="f"><label for="loginEmail">Email tim</label><input id="loginEmail" type="email" required autocomplete="username"></div>
-    <div class="f"><label for="loginPass">Password</label><input id="loginPass" type="password" required autocomplete="current-password"></div>
-    <div id="loginErr" class="auth-err" role="alert"></div>
-    <button id="loginBtn" class="btn primary" type="submit">Masuk</button>
-  </form>
-</div>
-
-<div id="appShell" class="wrap" hidden>
-<header class="top">
-  <div class="brand"><span class="mark">WKB</span><div><h1>Dokumen Ekspor</h1><p>Invoice dan packing list udang beku</p></div></div>
-  <nav id="nav" role="tablist" aria-label="Menu">
-    <button role="tab" data-view="make" aria-selected="true">Buat dokumen</button>
-    <button role="tab" data-view="items" aria-selected="false">Database item</button>
-    <button role="tab" data-view="archive" aria-selected="false">Arsip</button>
-    <button role="tab" data-view="dash" aria-selected="false">Dashboard</button>
-    <button role="tab" data-view="profile" aria-selected="false">Profil</button>
-  </nav>
-  <span id="mode" class="chip">memuat…</span>
-  <button id="btnLogout" class="btn" type="button">Keluar</button>
-</header>
-
-<main>
-<!-- BUAT DOKUMEN -->
-<section id="v-make">
-  <div class="banner" id="banner" hidden><span>Ini contoh dari PL nomor 396 milikmu. Harga per kg hanya contoh, dan nama kontak buyer perlu dicek ulang. Ganti sesuai pengiriman yang sebenarnya.</span><button class="btn" id="btnBlank" type="button">Mulai dokumen kosong</button></div>
-  <div class="work">
-    <div class="stack">
-      <div class="card">
-        <h2>Produk</h2>
-        <div class="f"><label for="q">Cari produk di database</label>
-          <input id="q" type="search" placeholder="mis. sushi ebi, 61/70, 3HM, 10F" autocomplete="off"></div>
-        <ul id="results" class="results"></ul>
-        <table class="lines" id="linesT" hidden>
-          <thead><tr><th>Produk</th><th>Karton</th><th>Harga (USD)</th><th></th></tr></thead>
-          <tbody id="lines"></tbody>
-        </table>
-        <p class="hint" id="linesHint"></p>
-      </div>
-      <div class="card">
-        <h2>Buyer</h2>
-        <div class="grid2">
-          <div class="f span2"><label for="buyerSel">Buyer tersimpan</label><select id="buyerSel"></select></div>
-          <div class="f span2"><label for="f-cname">Nama consignee</label><input id="f-cname" data-k="consignee.name"></div>
-          <div class="f span2"><label for="f-caddr">Alamat, attn, telepon</label><textarea id="f-caddr" rows="5" data-k="consignee.address"></textarea></div>
-          <div class="f span2"><label for="f-signer">Penandatangan invoice (direktur)</label><select id="f-signer"></select></div>
-        </div>
-        <div class="row" style="margin-top:10px"><button class="btn" id="btnSaveBuyer" type="button">Simpan sebagai buyer</button></div>
-      </div>
-      <div class="card">
-        <h2>Pengiriman</h2>
-        <div class="grid2">
-          <div class="f"><label for="f-etdp">ETD pelabuhan</label><input id="f-etdp" data-k="etd.port"></div>
-          <div class="f"><label for="f-etdd">ETD tanggal</label><input id="f-etdd" type="date" data-k="etd.date"></div>
-          <div class="f"><label for="f-etap">ETA pelabuhan</label><input id="f-etap" data-k="eta.port"></div>
-          <div class="f"><label for="f-etad">ETA tanggal</label><input id="f-etad" type="date" data-k="eta.date"></div>
-          <div class="f"><label for="f-shipby">Shipped by</label><input id="f-shipby" data-k="shippedBy"></div>
-          <div class="f"><label for="f-vessel">Feeder vessel / voyage</label><input id="f-vessel" data-k="vessel"></div>
-          <div class="f"><label for="f-mother">Mother vessel / voyage (opsional)</label><input id="f-mother" data-k="motherVessel"></div>
-          <div class="f"><label for="f-pol">POL</label><input id="f-pol" data-k="pol"></div>
-          <div class="f"><label for="f-pod">POD</label><input id="f-pod" data-k="pod"></div>
-          <div class="f"><label for="f-dest">Destination</label><input id="f-dest" data-k="destination"></div>
-          <div class="f"><label for="f-term">Syarat harga</label><input id="f-term" data-k="priceTerm" placeholder="CNF TOKYO"></div>
-          <div class="f"><label for="f-cont">No. kontainer</label><input id="f-cont" data-k="container"></div>
-          <div class="f"><label for="f-seal">No. seal</label><input id="f-seal" data-k="seal"></div>
-          <div class="f span2"><label for="f-proforma">No. proforma invoice (opsional, boleh lebih dari satu)</label><input id="f-proforma" data-k="proforma"></div>
-          <div class="f span2"><label for="f-contract">No. PO / kontrak (opsional)</label><input id="f-contract" data-k="contractNo"></div>
-          <div class="f span2"><label for="f-note">Catatan pembayaran di invoice</label><input id="f-note" data-k="payNote" placeholder="Freight prepaid in USD"></div>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <style>:root{color-scheme:light}html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+  <title>Dokumen Ekspor WKB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <style>
+  /* Layout: app bar with four views. "Buat" = form column beside a live paper preview; other views are single-column tables. Paper stays white in both themes because it is a printed document. */
+  :root{
+    --bg:#ffffff; --surface:#ffffff; --surface2:#f6f8f3; --ink:#2a1820; --muted:#6f6368; --line:#d8dfcc;
+    --accent:#879a73; --accent-ink:#670626; --accent-text:#670626; --accent-soft:#e7ecdf; --tint:#dfe6d3; --tint-line:#c3cfb2;
+    --cherry:#670626; --cherry-ink:#d3dec4; --cherry-text:#670626; --cherry-soft:#f7e9ee;
+    --warn:#8a5a14; --warn-soft:#fdeccd; --good:#2f7d5b; --bad:#b3261e;
+    --paper:#ffffff; --paper-ink:#111111; --paper-line:#222222; --paper-mute:#666666; --paper-bg:#dfe6d5;
+    --font-ui:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-doc:'Montserrat',Arial,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.45;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+  h1,h2,h3{margin:0;text-wrap:balance}
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+  .wrap{max-width:1360px;margin:0 auto}
+  .top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:16px 0 14px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .mark{font-family:var(--font-mono);font-weight:600;letter-spacing:.08em;background:var(--cherry);color:var(--cherry-ink);padding:6px 8px;border-radius:4px;font-size:13px}
+  .brand h1{font-size:18px;font-weight:600;letter-spacing:-.01em}
+  .brand p{margin:0;color:var(--muted);font-size:12.5px}
+  nav{display:flex;flex-wrap:wrap;gap:4px;margin-left:auto}
+  nav button{border:1px solid transparent;background:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500}
+  nav button[aria-selected="true"]{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+  nav button:hover{color:var(--ink)}
+  .chip{font-family:var(--font-mono);font-size:11.5px;padding:4px 8px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted);white-space:nowrap}
+  .chip.ok{color:var(--good)} .chip.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+  .banner{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:var(--cherry-soft);color:var(--cherry-text);border-radius:6px;padding:10px 14px;margin-bottom:14px}
+  .banner span{flex:1 1 320px;min-width:0}
+  .work{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:16px;align-items:start}
+  @media (max-width:1000px){.work{grid-template-columns:minmax(0,1fr)}}
+  .stack{display:grid;gap:14px;min-width:0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+  .card h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cherry);margin-right:8px;vertical-align:1px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--muted);margin-bottom:12px}
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  @media (max-width:480px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .span2{grid-column:1/-1}
+  .f{display:grid;gap:4px;min-width:0}
+  .f label{font-size:11.5px;color:var(--muted);font-weight:500}
+  input,select,textarea{width:100%;min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
+  textarea{resize:vertical}
+  input[type=number]{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:500;white-space:nowrap}
+  .btn:hover{border-color:var(--accent-text)}
+  .btn.primary{background:var(--cherry);color:var(--cherry-ink);border-color:var(--cherry)}
+  .btn.primary:hover{filter:brightness(1.18)}
+  .btn.danger{color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .results{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:236px;overflow:auto;scrollbar-color:var(--accent) transparent}
+  .res{width:100%;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 10px;border:1px solid var(--tint-line);border-radius:6px;background:var(--tint);cursor:pointer}
+  .res:hover{border-color:var(--accent-text)}
+  .res b{font-weight:500;overflow-wrap:anywhere}
+  .res small,.ld small{color:var(--muted);display:block;font-size:12px}
+  .res em{font-style:normal;font-family:var(--font-mono);font-size:12px;color:var(--cherry-text);align-self:center}
+  .hint{color:var(--muted);font-size:12.5px;margin:8px 0 0}
+  .lines{width:100%;border-collapse:collapse;margin-top:12px}
+  .lines th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-weight:500}
+  .lines td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .lines .ld{overflow-wrap:anywhere}
+  .lines input{padding:5px 6px;text-align:right}
+  .lines td.n{width:84px}
+  .lines td.p{width:104px}.lines select.pu{margin-top:4px;padding:4px 6px;width:100%}
+  .x{border:none;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
+  .x:hover{color:var(--bad)}
+  .calc{font-family:var(--font-mono);color:var(--muted)}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+  .seg button{border:none;background:none;padding:7px 14px;cursor:pointer;font-weight:500;color:var(--muted)}
+  .seg button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+  .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+  .sum div{background:var(--surface);padding:9px 12px;min-width:0}
+  .sum small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .sum b{font-family:var(--font-mono);font-weight:500;font-size:15px;display:block;margin-top:2px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .paper-wrap{overflow-x:auto;background:var(--accent-soft);border-radius:8px;padding:14px}
+  .paper{background:var(--paper);color:var(--paper-ink);font-family:var(--font-doc);font-size:10.2px;line-height:1.4;min-width:720px;max-width:900px;margin:0 auto;padding:30px 32px 36px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .paper h2{all:unset;display:block;text-align:center;font-weight:700;font-size:17px;letter-spacing:.04em;text-decoration:underline;margin-bottom:14px}
+  .kv{display:grid;grid-template-columns:160px 12px minmax(0,1fr);row-gap:3px;margin-bottom:12px}
+  .kv .c4{display:grid;grid-template-columns:9em 1fr 1em 1fr;column-gap:6px}.kv .k{font-weight:400}.kv .v{overflow-wrap:anywhere}
+  table.doc{width:100%;border-collapse:collapse;table-layout:auto;font-variant-numeric:tabular-nums}
+  table.doc th,table.doc td{border:1px solid var(--paper-line);padding:3px 6px}
+  table.doc th{font-weight:700;text-align:center;font-size:9.5px}
+  table.doc td.r{text-align:right;white-space:nowrap}
+  table.doc td.c{text-align:center}
+  table.doc tr.grp td{font-weight:700;text-decoration:underline;border-bottom:none;padding-top:9px}
+  table.doc tr.tot td{font-weight:700;border-top:2px solid var(--paper-line)}
+  .paper .say{margin:10px 0 4px;font-weight:700}
+  .paper .pay{display:grid;grid-template-columns:160px 12px minmax(0,1fr);row-gap:2px;margin-top:8px}
+  .paper .sig{margin-top:26px}
+  .paper .sig b{display:block;margin-top:70px}
+  .paper .ph{color:var(--paper-mute);font-style:italic}
+  .tablebox{overflow-x:auto}
+  table.data{width:100%;border-collapse:collapse;min-width:760px}
+  table.data th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
+  table.data td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.data td.r,table.data th.r{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .empty{border:1px dashed var(--line);border-radius:8px;padding:22px;text-align:center;color:var(--muted)}
+  .empty b{display:block;color:var(--ink);margin-bottom:4px}
+  .empty .btn{margin-top:10px}
+  .sect{display:grid;gap:14px}
+  .sect-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  .sect-head h2{font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0}
+  #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:calc(100% - 32px)}
+  #toast.show{opacity:1}
+  .chk{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500}.chk input{width:auto}
+  table.doc.duty{width:100%;margin:12px 0 0}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}.kpi small{display:block;color:var(--muted);font-size:12px}.kpi b{font-size:20px;display:block;margin-top:2px}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+  .dbar{height:8px;background:var(--cherry);border-radius:4px;min-width:2px}
+  .trend{display:flex;align-items:flex-end;gap:8px;height:150px;overflow-x:auto;padding-top:8px}.trend .col{flex:1;min-width:44px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--muted)}.trend .col .dbar{width:70%}
+  .dfilter{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}.dfilter .f{min-width:140px}
+  .auth-wrap{min-height:80vh;display:grid;place-items:center;padding:24px 0}
+  .auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;display:grid;gap:12px}
+  .auth-err{color:var(--bad);font-size:12.5px;min-height:18px}
+  @media (prefers-reduced-motion:reduce){#toast{transition:none}}
+  </style>
+</head>
+<body>
+  <div id="authGate" class="auth-wrap">
+    <form id="loginForm" class="auth-card">
+      <div class="brand">
+        <span class="mark">WKB</span>
+        <div>
+          <h1>Login Tim Ekspor</h1>
+          <p>PT. Winaros Kawula Bahari</p>
         </div>
       </div>
-      <div class="card">
-        <h2>Biaya lain (opsional)</h2>
-        <p class="hint">Misalnya pallet fee atau COA lab, untuk buyer tertentu saja. Muncul di bawah total invoice dan ikut ke total yang dibayar, tapi tidak ikut dasar hitungan duty US. Klik Simpan buyer supaya biaya ini terisi otomatis saat buyer itu dipilih.</p>
-        <table class="lines"><thead><tr><th>Nama biaya</th><th>USD</th><th></th></tr></thead><tbody id="chRows"></tbody></table>
-        <div class="row" style="margin-top:8px"><button class="btn" id="chAdd" type="button">Tambah biaya</button></div>
-        <datalist id="dl-charge"><option value="Pallet Fee"><option value="COA Lab"><option value="Documentation Fee"><option value="Courier Fee"></datalist>
+      <p class="hint" style="margin:0">Masuk menggunakan akun email &amp; password tim yang terdaftar di Firebase Authentication.</p>
+      <div class="f">
+        <label for="loginEmail">Email tim</label>
+        <input id="loginEmail" type="email" required autocomplete="username">
       </div>
-      <div class="card">
-        <h2>Shipment ke US</h2>
-        <label class="chk"><input type="checkbox" id="us-on"> Shipment ini ke US (tambah hitungan duty di invoice)</label>
-        <div id="us-box" hidden>
-          <p class="hint">Duty dihitung per kelompok: Raw + Cooked dan Ebi Fry + Tempura (satu tabel tiap kelompok yang ada di invoice). FOB tiap tabel = (nilai produk - nilai produk x (freight + insurance + broker fee) / total invoice) / (1 + total rate duty).</p>
-          <div class="grid3" style="margin-bottom:10px">
-            <div class="f"><label for="us-freight">Ocean freight (USD)</label><input id="us-freight" type="number" min="0" step="0.01"></div>
-            <div class="f"><label for="us-broker">Broker fee (USD)</label><input id="us-broker" type="number" min="0" step="0.01"></div>
-            <div class="f"><label for="us-ins">Insurance (% nilai)</label><input id="us-ins" type="number" min="0" step="0.0001"></div>
+      <div class="f">
+        <label for="loginPass">Password</label>
+        <input id="loginPass" type="password" required autocomplete="current-password">
+      </div>
+      <div id="loginErr" class="auth-err" role="alert">
+      </div>
+      <button id="loginBtn" class="btn primary" type="submit">Masuk</button>
+    </form>
+  </div>
+  <div id="appShell" class="wrap" hidden>
+    <header class="top">
+      <div class="brand">
+        <span class="mark">WKB</span>
+        <div>
+          <h1>Dokumen Ekspor</h1>
+          <p>Invoice dan packing list udang beku</p>
+        </div>
+      </div>
+      <nav id="nav" role="tablist" aria-label="Menu">
+        <button role="tab" data-view="make" aria-selected="true">Buat dokumen</button>
+        <button role="tab" data-view="items" aria-selected="false">Database item</button>
+        <button role="tab" data-view="archive" aria-selected="false">Arsip</button>
+        <button role="tab" data-view="dash" aria-selected="false">Dashboard</button>
+        <button role="tab" data-view="profile" aria-selected="false">Profil</button>
+      </nav>
+      <span id="mode" class="chip">memuat…</span>
+      <button id="btnLogout" class="btn" type="button">Keluar</button>
+    </header>
+    <main>
+
+      <!-- BUAT DOKUMEN -->
+      <section id="v-make">
+        <div class="banner" id="banner" hidden>
+          <span>Ini contoh dari PL nomor 396 milikmu. Harga per kg hanya contoh, dan nama kontak buyer perlu dicek ulang. Ganti sesuai pengiriman yang sebenarnya.</span>
+          <button class="btn" id="btnBlank" type="button">Mulai dokumen kosong</button>
+        </div>
+        <div class="work">
+          <div class="stack">
+            <div class="card">
+              <h2>Produk</h2>
+              <div class="f">
+                <label for="q">Cari produk di database</label>
+                <input id="q" type="search" placeholder="mis. sushi ebi, 61/70, 3HM, 10F" autocomplete="off">
+              </div>
+              <ul id="results" class="results">
+              </ul>
+              <table class="lines" id="linesT" hidden>
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th>Karton</th>
+                    <th>Harga (USD)</th>
+                    <th>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="lines">
+                </tbody>
+              </table>
+              <p class="hint" id="linesHint">
+              </p>
+            </div>
+            <div class="card">
+              <h2>Buyer</h2>
+              <div class="grid2">
+                <div class="f span2">
+                  <label for="buyerSel">Buyer tersimpan</label>
+                  <select id="buyerSel">
+                  </select>
+                </div>
+                <div class="f span2">
+                  <label for="f-cname">Nama consignee</label>
+                  <input id="f-cname" data-k="consignee.name">
+                </div>
+                <div class="f span2">
+                  <label for="f-caddr">Alamat, attn, telepon</label>
+                  <textarea id="f-caddr" rows="5" data-k="consignee.address">
+                  </textarea>
+                </div>
+                <div class="f span2">
+                  <label for="f-signer">Penandatangan invoice (direktur)</label>
+                  <select id="f-signer">
+                  </select>
+                </div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn" id="btnSaveBuyer" type="button">Simpan sebagai buyer</button>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Pengiriman</h2>
+              <div class="grid2">
+                <div class="f">
+                  <label for="f-etdp">ETD pelabuhan</label>
+                  <input id="f-etdp" data-k="etd.port">
+                </div>
+                <div class="f">
+                  <label for="f-etdd">ETD tanggal</label>
+                  <input id="f-etdd" type="date" data-k="etd.date">
+                </div>
+                <div class="f">
+                  <label for="f-etap">ETA pelabuhan</label>
+                  <input id="f-etap" data-k="eta.port">
+                </div>
+                <div class="f">
+                  <label for="f-etad">ETA tanggal</label>
+                  <input id="f-etad" type="date" data-k="eta.date">
+                </div>
+                <div class="f">
+                  <label for="f-shipby">Shipped by</label>
+                  <input id="f-shipby" data-k="shippedBy">
+                </div>
+                <div class="f">
+                  <label for="f-vessel">Feeder vessel / voyage</label>
+                  <input id="f-vessel" data-k="vessel">
+                </div>
+                <div class="f">
+                  <label for="f-mother">Mother vessel / voyage (opsional)</label>
+                  <input id="f-mother" data-k="motherVessel">
+                </div>
+                <div class="f">
+                  <label for="f-pol">POL</label>
+                  <input id="f-pol" data-k="pol">
+                </div>
+                <div class="f">
+                  <label for="f-pod">POD</label>
+                  <input id="f-pod" data-k="pod">
+                </div>
+                <div class="f">
+                  <label for="f-dest">Destination</label>
+                  <input id="f-dest" data-k="destination">
+                </div>
+                <div class="f">
+                  <label for="f-term">Syarat harga</label>
+                  <input id="f-term" data-k="priceTerm" placeholder="CNF TOKYO">
+                </div>
+                <div class="f">
+                  <label for="f-cont">No. kontainer</label>
+                  <input id="f-cont" data-k="container">
+                </div>
+                <div class="f">
+                  <label for="f-seal">No. seal</label>
+                  <input id="f-seal" data-k="seal">
+                </div>
+                <div class="f span2">
+                  <label for="f-proforma">No. proforma invoice (opsional, boleh lebih dari satu)</label>
+                  <input id="f-proforma" data-k="proforma">
+                </div>
+                <div class="f span2">
+                  <label for="f-contract">No. PO / kontrak (opsional)</label>
+                  <input id="f-contract" data-k="contractNo">
+                </div>
+                <div class="f span2">
+                  <label for="f-note">Catatan pembayaran di invoice</label>
+                  <input id="f-note" data-k="payNote" placeholder="Freight prepaid in USD">
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Biaya lain (opsional)</h2>
+              <p class="hint">
+                Misalnya pallet fee atau COA lab, untuk buyer tertentu saja. Muncul di bawah total invoice dan ikut ke total yang dibayar, tapi tidak ikut dasar hitungan duty US. Klik Simpan buyer supaya biaya ini terisi otomatis saat buyer itu dipilih.
+              </p>
+              <table class="lines">
+                <thead>
+                  <tr>
+                    <th>Nama biaya</th>
+                    <th>USD</th>
+                    <th>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="chRows">
+                </tbody>
+              </table>
+              <div class="row" style="margin-top:8px">
+                <button class="btn" id="chAdd" type="button">Tambah biaya</button>
+              </div>
+              <datalist id="dl-charge">
+                <option value="Pallet Fee">
+                  <option value="COA Lab">
+                    <option value="Documentation Fee">
+                      <option value="Courier Fee">
+                      </datalist>
+                    </div>
+                    <div class="card">
+                      <h2>Shipment ke US</h2>
+                      <label class="chk">
+                        <input type="checkbox" id="us-on">
+                        Shipment ini ke US (tambah hitungan duty di invoice)
+                      </label>
+                      <div id="us-box" hidden>
+                        <p class="hint">
+                          Duty dihitung per kelompok: Raw + Cooked dan Ebi Fry + Tempura (satu tabel tiap kelompok yang ada di invoice). FOB tiap tabel = (nilai produk - nilai produk x (freight + insurance + broker fee) / total invoice) / (1 + total rate duty).
+                        </p>
+                        <div class="grid3" style="margin-bottom:10px">
+                          <div class="f">
+                            <label for="us-freight">Ocean freight (USD)</label>
+                            <input id="us-freight" type="number" min="0" step="0.01">
+                          </div>
+                          <div class="f">
+                            <label for="us-broker">Broker fee (USD)</label>
+                            <input id="us-broker" type="number" min="0" step="0.01">
+                          </div>
+                          <div class="f">
+                            <label for="us-ins">Insurance (% nilai)</label>
+                            <input id="us-ins" type="number" min="0" step="0.0001">
+                          </div>
+                        </div>
+                        <h3 style="font-size:13px;margin:12px 0 6px">Rate untuk Raw dan Cooked</h3>
+                        <table class="lines">
+                          <thead>
+                            <tr>
+                              <th>Nama duty</th>
+                              <th>Rate (%)</th>
+                              <th>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody id="dutyRows">
+                          </tbody>
+                        </table>
+                        <div class="row" style="margin-top:8px">
+                          <button class="btn" id="dutyAdd" type="button">Tambah duty</button>
+                        </div>
+                        <h3 style="font-size:13px;margin:16px 0 6px">Rate untuk Ebi Fry dan Tempura (ADD default 0)</h3>
+                        <table class="lines">
+                          <thead>
+                            <tr>
+                              <th>Nama duty</th>
+                              <th>Rate (%)</th>
+                              <th>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody id="dutyRows2">
+                          </tbody>
+                        </table>
+                        <div class="row" style="margin-top:8px">
+                          <button class="btn" id="dutyAdd2" type="button">Tambah duty</button>
+                        </div>
+                        <p class="hint" id="usSum">
+                        </p>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <h2>Nomor dan tanggal</h2>
+                      <div class="grid3">
+                        <div class="f">
+                          <label for="f-seq">No. urut</label>
+                          <input id="f-seq" type="number" min="1" step="1" data-k="seq">
+                        </div>
+                        <div class="f">
+                          <label for="f-date">Tanggal dokumen</label>
+                          <input id="f-date" type="date" data-k="docDate">
+                        </div>
+                        <div class="f">
+                          <label for="f-place">Kota</label>
+                          <input id="f-place" data-k="place">
+                        </div>
+                        <div class="f span2">
+                          <label for="f-inv">No. invoice</label>
+                          <input id="f-inv" data-k="invNo">
+                        </div>
+                        <div class="f span2">
+                          <label for="f-pl">No. packing list</label>
+                          <input id="f-pl" data-k="plNo">
+                        </div>
+                      </div>
+                      <div class="row" style="margin-top:10px">
+                        <button class="btn" id="btnAuto" type="button">Nomor otomatis</button>
+                        <span class="hint" style="margin:0" id="autoHint">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-prev" style="min-width:0">
+                    <div class="bar">
+                      <div class="seg" role="tablist" aria-label="Jenis dokumen">
+                        <button role="tab" data-doc="inv" aria-selected="true">Invoice</button>
+                        <button role="tab" data-doc="pl" aria-selected="false">Packing list</button>
+                      </div>
+                      <div class="row">
+                        <button class="btn" id="btnNew" type="button">Baru</button>
+                        <button class="btn" id="btnSave" type="button">Simpan ke arsip</button>
+                        <button class="btn primary" id="btnPdf" type="button">Unduh PDF</button>
+                        <button class="btn primary" id="btnXlsx" type="button">Unduh Excel</button>
+                      </div>
+                    </div>
+                    <div class="sum" id="sum">
+                    </div>
+                    <div class="paper-wrap">
+                      <div class="paper" id="paper">
+                      </div>
+                    </div>
+                    <p class="hint">
+                      PDF mengikuti tab yang sedang dibuka. Excel berisi dua sheet (invoice dan packing list) dengan rumus, jadi karton dan harga bisa diubah langsung di Excel.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- DATABASE ITEM -->
+              <section id="v-items" hidden>
+                <div class="sect">
+                  <div class="card">
+                    <h2 id="itFormTitle">Tambah item</h2>
+                    <div class="grid3">
+                      <div class="f">
+                        <label for="it-nama">Nama produk (judul grup)</label>
+                        <input id="it-nama" placeholder="White Vannamei Sushi Ebi" list="dl-nama">
+                      </div>
+                      <div class="f">
+                        <label for="it-style">Packing style</label>
+                        <input id="it-style" placeholder="Without Tail 40 x 90 gr">
+                      </div>
+                      <div class="f">
+                        <label for="it-size">Size</label>
+                        <input id="it-size" placeholder="61/70">
+                      </div>
+                      <div class="f">
+                        <label for="it-kategori">Kategori</label>
+                        <select id="it-kategori">
+                          <option value="">Pilih kategori…</option>
+                          <option value="raw">White Raw Vannamei Frozen Shrimp</option>
+                          <option value="cooked">White Cooked Vannamei Frozen Shrimp</option>
+                          <option value="ebifry">White Vannamei Ebi Fry</option>
+                          <option value="tempura">White Vannamei Tempura</option>
+                        </select>
+                      </div>
+                      <div class="f">
+                        <label for="it-kode">Kode item (opsional)</label>
+                        <input id="it-kode">
+                      </div>
+                      <div class="f">
+                        <label for="it-pcs">Pcs per karton (opsional)</label>
+                        <input id="it-pcs" type="number" min="0" step="1">
+                      </div>
+                      <div class="f">
+                        <label for="it-harga">Harga default (USD)</label>
+                        <input id="it-harga" type="number" min="0" step="any">
+                      </div>
+                      <div class="f">
+                        <label for="it-hargaUnit">Harga dikali dengan</label>
+                        <select id="it-hargaUnit">
+                          <option value="kg">Kilo (USD/kg)</option>
+                          <option value="lbs">Lbs (USD/lbs)</option>
+                          <option value="pcs">Pcs (USD/pcs)</option>
+                        </select>
+                      </div>
+                      <div class="f">
+                        <label for="it-netKg">Net per karton (kg)</label>
+                        <input id="it-netKg" type="number" min="0" step="any">
+                      </div>
+                      <div class="f">
+                        <label for="it-netLbs">Net per karton (lbs)</label>
+                        <input id="it-netLbs" type="number" min="0" step="any">
+                      </div>
+                      <div class="f">
+                        <label for="it-grossKg">Gross per karton (kg, otomatis net x 1,2)</label>
+                        <input id="it-grossKg" type="number" min="0" step="any">
+                      </div>
+                      <div class="f">
+                        <label for="it-grossLbs">Gross per karton (lbs)</label>
+                        <input id="it-grossLbs" type="number" min="0" step="any">
+                      </div>
+                    </div>
+                    <datalist id="dl-nama">
+                    </datalist>
+                    <p class="hint">Lbs terisi otomatis dari kg (1 kg = 2,2046 lbs). Ubah manual hanya kalau angka lbs-mu berbeda.</p>
+                    <div class="row" style="margin-top:10px">
+                      <button class="btn primary" id="itSave" type="button">Simpan item</button>
+                      <button class="btn" id="itReset" type="button">Kosongkan form</button>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <div class="sect-head" style="margin-bottom:10px">
+                      <h2 style="font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0">
+                        Daftar item
+                        <span class="chip" id="itCount">
+                        </span>
+                      </h2>
+                      <div class="f" style="min-width:min(260px,100%)">
+                        <label for="itq" class="sr" style="position:absolute;left:-9999px">Cari</label>
+                        <input id="itq" type="search" placeholder="Cari item">
+                      </div>
+                    </div>
+                    <div class="tablebox">
+                      <table class="data">
+                        <thead>
+                          <tr>
+                            <th>Produk</th>
+                            <th>Packing style</th>
+                            <th>Size</th>
+                            <th>Kategori</th>
+                            <th>Kode</th>
+                            <th class="r">Net kg</th>
+                            <th class="r">Net lbs</th>
+                            <th class="r">Gross kg</th>
+                            <th class="r">Gross lbs</th>
+                            <th class="r">Pcs</th>
+                            <th class="r">USD/kg</th>
+                            <th>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody id="itBody">
+                        </tbody>
+                      </table>
+                    </div>
+                    <div id="itEmpty">
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ARSIP -->
+              <section id="v-archive" hidden>
+                <div class="sect">
+                  <div class="sect-head">
+                    <h2>Arsip dokumen</h2>
+                  </div>
+                  <div class="card">
+                    <div class="tablebox">
+                      <table class="data">
+                        <thead>
+                          <tr>
+                            <th>No. invoice</th>
+                            <th>Buyer</th>
+                            <th>Tanggal</th>
+                            <th class="r">Karton</th>
+                            <th class="r">Total USD</th>
+                            <th>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody id="arBody">
+                        </tbody>
+                      </table>
+                    </div>
+                    <div id="arEmpty">
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- DASHBOARD -->
+              <section id="v-dash" hidden>
+                <div class="sect">
+                  <div class="sect-head">
+                    <h2>Dashboard invoice</h2>
+                    <div class="dfilter">
+                      <div class="f">
+                        <label for="ds-from">Dari tanggal</label>
+                        <input id="ds-from" type="date">
+                      </div>
+                      <div class="f">
+                        <label for="ds-to">Sampai tanggal</label>
+                        <input id="ds-to" type="date">
+                      </div>
+                      <button class="btn" id="dsReset" type="button">Reset</button>
+                      <button class="btn primary" id="dsXlsx" type="button">Unduh Excel</button>
+                    </div>
+                  </div>
+                  <div id="dsBody">
+                  </div>
+                </div>
+              </section>
+
+              <!-- PROFIL -->
+              <section id="v-profile" hidden>
+                <div class="sect">
+                  <div class="card" style="max-width:720px">
+                    <h2>Profil perusahaan (tampil di semua dokumen)</h2>
+                    <div class="grid2">
+                      <div class="f span2">
+                        <label for="co-name">Nama perusahaan</label>
+                        <input id="co-name">
+                      </div>
+                      <div class="f span2">
+                        <label for="co-addr">Alamat</label>
+                        <textarea id="co-addr" rows="3">
+                        </textarea>
+                      </div>
+                      <div class="f">
+                        <label for="co-fda">No. FDA</label>
+                        <input id="co-fda">
+                      </div>
+                      <div class="f">
+                        <label for="co-mark">Kode mark / nomor</label>
+                        <input id="co-mark">
+                      </div>
+                      <div class="f">
+                        <label for="co-place">Kota penandatangan</label>
+                        <input id="co-place">
+                      </div>
+                      <div class="f">
+                        <label for="co-sign">Direktur 1</label>
+                        <input id="co-sign">
+                      </div>
+                      <div class="f">
+                        <label for="co-sign2">Direktur 2</label>
+                        <input id="co-sign2">
+                      </div>
+                      <div class="f">
+                        <label for="co-hts-raw">HTS Code: White Raw Vannamei Frozen Shrimp</label>
+                        <input id="co-hts-raw">
+                      </div>
+                      <div class="f">
+                        <label for="co-hts-cooked">HTS Code: White Cooked Vannamei Frozen Shrimp</label>
+                        <input id="co-hts-cooked">
+                      </div>
+                      <div class="f">
+                        <label for="co-hts-ebifry">HTS Code: White Vannamei Ebi Fry</label>
+                        <input id="co-hts-ebifry">
+                      </div>
+                      <div class="f">
+                        <label for="co-hts-tempura">HTS Code: White Vannamei Tempura</label>
+                        <input id="co-hts-tempura">
+                      </div>
+                      <div class="f span2">
+                        <label for="co-bank">Data bank untuk pembayaran T/T (bank, alamat, swift, nomor rekening)</label>
+                        <textarea id="co-bank" rows="5" placeholder="Nama bank&#10;Alamat bank&#10;Swift code&#10;Account number">
+                        </textarea>
+                      </div>
+                    </div>
+                    <div class="row" style="margin-top:12px">
+                      <button class="btn primary" id="coSave" type="button">Simpan profil</button>
+                    </div>
+                  </div>
+                  <div class="card" style="max-width:720px">
+                    <h2>Cadangan data</h2>
+                    <p class="hint" style="margin:0 0 10px">
+                      Simpan item, buyer, arsip, dan profil ke satu file. Pakai file ini untuk memindahkan data ke perangkat lain atau memulihkannya.
+                    </p>
+                    <div class="row">
+                      <button class="btn" id="btnBackup" type="button">Ekspor cadangan</button>
+                      <button class="btn" id="btnRestore" type="button">Impor cadangan</button>
+                      <input type="file" id="fileRestore" accept="application/json,.json" hidden>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </main>
           </div>
-          <h3 style="font-size:13px;margin:12px 0 6px">Rate untuk Raw dan Cooked</h3>
-          <table class="lines"><thead><tr><th>Nama duty</th><th>Rate (%)</th><th></th></tr></thead><tbody id="dutyRows"></tbody></table>
-          <div class="row" style="margin-top:8px"><button class="btn" id="dutyAdd" type="button">Tambah duty</button></div>
-          <h3 style="font-size:13px;margin:16px 0 6px">Rate untuk Ebi Fry dan Tempura (ADD default 0)</h3>
-          <table class="lines"><thead><tr><th>Nama duty</th><th>Rate (%)</th><th></th></tr></thead><tbody id="dutyRows2"></tbody></table>
-          <div class="row" style="margin-top:8px"><button class="btn" id="dutyAdd2" type="button">Tambah duty</button></div>
-          <p class="hint" id="usSum"></p>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Nomor dan tanggal</h2>
-        <div class="grid3">
-          <div class="f"><label for="f-seq">No. urut</label><input id="f-seq" type="number" min="1" step="1" data-k="seq"></div>
-          <div class="f"><label for="f-date">Tanggal dokumen</label><input id="f-date" type="date" data-k="docDate"></div>
-          <div class="f"><label for="f-place">Kota</label><input id="f-place" data-k="place"></div>
-          <div class="f span2"><label for="f-inv">No. invoice</label><input id="f-inv" data-k="invNo"></div>
-          <div class="f span2"><label for="f-pl">No. packing list</label><input id="f-pl" data-k="plNo"></div>
-        </div>
-        <div class="row" style="margin-top:10px"><button class="btn" id="btnAuto" type="button">Nomor otomatis</button><span class="hint" style="margin:0" id="autoHint"></span></div>
-      </div>
-    </div>
+          <div id="toast" role="status" aria-live="polite">
+          </div>
 
-    <div class="col-prev" style="min-width:0">
-      <div class="bar">
-        <div class="seg" role="tablist" aria-label="Jenis dokumen">
-          <button role="tab" data-doc="inv" aria-selected="true">Invoice</button>
-          <button role="tab" data-doc="pl" aria-selected="false">Packing list</button>
-        </div>
-        <div class="row">
-          <button class="btn" id="btnNew" type="button">Baru</button>
-          <button class="btn" id="btnSave" type="button">Simpan ke arsip</button>
-          <button class="btn primary" id="btnPdf" type="button">Unduh PDF</button>
-          <button class="btn primary" id="btnXlsx" type="button">Unduh Excel</button>
-        </div>
-      </div>
-      <div class="sum" id="sum"></div>
-      <div class="paper-wrap"><div class="paper" id="paper"></div></div>
-      <p class="hint">PDF mengikuti tab yang sedang dibuka. Excel berisi dua sheet (invoice dan packing list) dengan rumus, jadi karton dan harga bisa diubah langsung di Excel.</p>
-    </div>
-  </div>
-</section>
-
-<!-- DATABASE ITEM -->
-<section id="v-items" hidden>
-  <div class="sect">
-    <div class="card">
-      <h2 id="itFormTitle">Tambah item</h2>
-      <div class="grid3">
-        <div class="f"><label for="it-nama">Nama produk (judul grup)</label><input id="it-nama" placeholder="White Vannamei Sushi Ebi" list="dl-nama"></div>
-        <div class="f"><label for="it-style">Packing style</label><input id="it-style" placeholder="Without Tail 40 x 90 gr"></div>
-        <div class="f"><label for="it-size">Size</label><input id="it-size" placeholder="61/70"></div>
-        <div class="f"><label for="it-kategori">Kategori</label><select id="it-kategori"><option value="">Pilih kategori…</option><option value="raw">White Raw Vannamei Frozen Shrimp</option><option value="cooked">White Cooked Vannamei Frozen Shrimp</option><option value="ebifry">White Vannamei Ebi Fry</option><option value="tempura">White Vannamei Tempura</option></select></div>
-        <div class="f"><label for="it-kode">Kode item (opsional)</label><input id="it-kode"></div>
-        <div class="f"><label for="it-pcs">Pcs per karton (opsional)</label><input id="it-pcs" type="number" min="0" step="1"></div>
-        <div class="f"><label for="it-harga">Harga default (USD)</label><input id="it-harga" type="number" min="0" step="any"></div>
-        <div class="f"><label for="it-hargaUnit">Harga dikali dengan</label><select id="it-hargaUnit"><option value="kg">Kilo (USD/kg)</option><option value="lbs">Lbs (USD/lbs)</option><option value="pcs">Pcs (USD/pcs)</option></select></div>
-        <div class="f"><label for="it-netKg">Net per karton (kg)</label><input id="it-netKg" type="number" min="0" step="any"></div>
-        <div class="f"><label for="it-netLbs">Net per karton (lbs)</label><input id="it-netLbs" type="number" min="0" step="any"></div>
-        <div class="f"><label for="it-grossKg">Gross per karton (kg, otomatis net x 1,2)</label><input id="it-grossKg" type="number" min="0" step="any"></div>
-        <div class="f"><label for="it-grossLbs">Gross per karton (lbs)</label><input id="it-grossLbs" type="number" min="0" step="any"></div>
-      </div>
-      <datalist id="dl-nama"></datalist>
-      <p class="hint">Lbs terisi otomatis dari kg (1 kg = 2,2046 lbs). Ubah manual hanya kalau angka lbs-mu berbeda.</p>
-      <div class="row" style="margin-top:10px"><button class="btn primary" id="itSave" type="button">Simpan item</button><button class="btn" id="itReset" type="button">Kosongkan form</button></div>
-    </div>
-    <div class="card">
-      <div class="sect-head" style="margin-bottom:10px"><h2 style="font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0">Daftar item <span class="chip" id="itCount"></span></h2>
-        <div class="f" style="min-width:min(260px,100%)"><label for="itq" class="sr" style="position:absolute;left:-9999px">Cari</label><input id="itq" type="search" placeholder="Cari item"></div></div>
-      <div class="tablebox"><table class="data"><thead><tr><th>Produk</th><th>Packing style</th><th>Size</th><th>Kategori</th><th>Kode</th><th class="r">Net kg</th><th class="r">Net lbs</th><th class="r">Gross kg</th><th class="r">Gross lbs</th><th class="r">Pcs</th><th class="r">USD/kg</th><th></th></tr></thead><tbody id="itBody"></tbody></table></div>
-      <div id="itEmpty"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ARSIP -->
-<section id="v-archive" hidden>
-  <div class="sect">
-    <div class="sect-head"><h2>Arsip dokumen</h2></div>
-    <div class="card"><div class="tablebox"><table class="data"><thead><tr><th>No. invoice</th><th>Buyer</th><th>Tanggal</th><th class="r">Karton</th><th class="r">Total USD</th><th></th></tr></thead><tbody id="arBody"></tbody></table></div><div id="arEmpty"></div></div>
-  </div>
-</section>
-
-<!-- DASHBOARD -->
-<section id="v-dash" hidden>
-  <div class="sect">
-    <div class="sect-head"><h2>Dashboard invoice</h2>
-      <div class="dfilter">
-        <div class="f"><label for="ds-from">Dari tanggal</label><input id="ds-from" type="date"></div>
-        <div class="f"><label for="ds-to">Sampai tanggal</label><input id="ds-to" type="date"></div>
-        <button class="btn" id="dsReset" type="button">Reset</button>
-        <button class="btn primary" id="dsXlsx" type="button">Unduh Excel</button>
-      </div>
-    </div>
-    <div id="dsBody"></div>
-  </div>
-</section>
-
-<!-- PROFIL -->
-<section id="v-profile" hidden>
-  <div class="sect"><div class="card" style="max-width:720px">
-    <h2>Profil perusahaan (tampil di semua dokumen)</h2>
-    <div class="grid2">
-      <div class="f span2"><label for="co-name">Nama perusahaan</label><input id="co-name"></div>
-      <div class="f span2"><label for="co-addr">Alamat</label><textarea id="co-addr" rows="3"></textarea></div>
-      <div class="f"><label for="co-fda">No. FDA</label><input id="co-fda"></div>
-      <div class="f"><label for="co-mark">Kode mark / nomor</label><input id="co-mark"></div>
-      <div class="f"><label for="co-place">Kota penandatangan</label><input id="co-place"></div>
-      <div class="f"><label for="co-sign">Direktur 1</label><input id="co-sign"></div>
-      <div class="f"><label for="co-sign2">Direktur 2</label><input id="co-sign2"></div>
-      <div class="f"><label for="co-hts-raw">HTS Code: White Raw Vannamei Frozen Shrimp</label><input id="co-hts-raw"></div>
-      <div class="f"><label for="co-hts-cooked">HTS Code: White Cooked Vannamei Frozen Shrimp</label><input id="co-hts-cooked"></div>
-      <div class="f"><label for="co-hts-ebifry">HTS Code: White Vannamei Ebi Fry</label><input id="co-hts-ebifry"></div>
-      <div class="f"><label for="co-hts-tempura">HTS Code: White Vannamei Tempura</label><input id="co-hts-tempura"></div>
-      <div class="f span2"><label for="co-bank">Data bank untuk pembayaran T/T (bank, alamat, swift, nomor rekening)</label><textarea id="co-bank" rows="5" placeholder="Nama bank&#10;Alamat bank&#10;Swift code&#10;Account number"></textarea></div>
-    </div>
-    <div class="row" style="margin-top:12px"><button class="btn primary" id="coSave" type="button">Simpan profil</button></div>
-  </div>
-  <div class="card" style="max-width:720px">
-    <h2>Cadangan data</h2>
-    <p class="hint" style="margin:0 0 10px">Simpan item, buyer, arsip, dan profil ke satu file. Pakai file ini untuk memindahkan data ke perangkat lain atau memulihkannya.</p>
-    <div class="row"><button class="btn" id="btnBackup" type="button">Ekspor cadangan</button><button class="btn" id="btnRestore" type="button">Impor cadangan</button><input type="file" id="fileRestore" accept="application/json,.json" hidden></div>
-  </div></div>
-</section>
-</main>
-</div>
-<div id="toast" role="status" aria-live="polite"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script>
 /*PURE_START*/
 const LB = 2.2046;
 const UL = {kg:'Kg', lbs:'Lbs', pcs:'Pcs'};
@@ -459,6 +804,7 @@ function brokerLayout(dc){
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
+/* ---------- contoh data dari PL 396 ---------- */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBCj87c1uW342Z_BRzC_nUzLM5G1xFbZ_4",
   authDomain: "wkb-dokumen-ekspor.firebaseapp.com",
@@ -484,6 +830,7 @@ const SAMPLE_ITEMS = [
 const SAMPLE_QTY = {'i-sushi-90-6170':[164,76],'i-sushi-20-L':[373],'i-sushi-200-M':[230],'i-sushi-2hm':[42],'i-sushi-3hm':[89],'i-sushi-4hm':[114],'i-sushi-5hm':[79],'i-sushi-6hm':[31],'i-cooked-10f':[188]};
 const DEFAULT_CO = { name:'PT. WINAROS KAWULA BAHARI', address:'JL. Raya Cangkring Malang KM.39,4 Cangkring Malang\nBeji-Pasuruan 67154\nJawa Timur-Indonesia', fda:'19969465160', mark:'WKB', place:'PASURUAN', signatory:'RONNY WIBISONO', signatory2:'', htsRaw:'030617', htsCooked:'160521', htsEbifry:'160521', htsTempura:'160521', bank:'' };
 
+/* ---------- state ---------- */
 let ITEMS = [], ARCH = [], BUY = [], CO = Object.assign({}, DEFAULT_CO);
 let D = null, ACTIVE = 'inv', EDIT_ITEM = null, wired = false, unsubs = [];
 let uid = 0; const newKey = () => 'l' + Date.now().toString(36) + (uid++);
@@ -510,6 +857,7 @@ function sampleDoc(){
   const n = autoNumbers(d, CO.mark); d.invNo = n.inv; d.plNo = n.pl; return d;
 }
 
+/* ---------- penyimpanan: database firestore, atau browser bila tidak tersedia ---------- */
 const Store = {
   db:null, auth:null, local:{}, cbs:{},
   init(){
@@ -554,6 +902,7 @@ const Store = {
   }
 };
 
+/* ---------- util UI ---------- */
 let toastT = null;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
 function getPath(o, p){ return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
@@ -572,6 +921,7 @@ function confirmBtn(btn, label, fn){
   });
 }
 
+/* ---------- baris header dokumen (dipakai preview, PDF, Excel) ---------- */
 function headerRows(kind){
   const d = D, R = [];
   R.push(kind === 'pl' ? {label:'Packing List No.', lines:[or(d.plNo)]} : {label:'Invoice No.', lines:[or(d.invNo)]});
@@ -592,6 +942,7 @@ function bankLines(){ return splitLines(CO.bank); }
 function signerName(){ return D.signatory || CO.signatory || ''; }
 function footerText(){ return (CO.place || D.place || '') + ': ' + fmtDate(D.docDate); }
 
+/* ---------- preview kertas ---------- */
 function paperHTML(kind){
   const m = model(D, 'kat'), t = m.tot;
   const kv = '<div class="kv">' + headerRows(kind).map(r => `<div class="k">${esc(r.label)}${r.label2 ? '<br>' + esc(r.label2) : ''}</div><div class="c">:</div><div class="v">${r.lines.map(l => Array.isArray(l) ? '<div class="c4">' + l.map(c => `<span>${esc(c)}</span>`).join('') + '</div>' : '<div>' + esc(l) + '</div>').join('')}</div>`).join('') + '</div>';
@@ -631,6 +982,7 @@ function renderPaper(){
   refreshUsSum();
 }
 
+/* ---------- form ---------- */
 function fillForm(){
   $$('[data-k]', $('#v-make')).forEach(el => { const v = getPath(D, el.dataset.k); el.value = v == null ? '' : v; });
   $('#autoHint').textContent = D.autoNo ? 'Nomor mengikuti no. urut dan tanggal.' : 'Nomor diisi manual.';
@@ -745,6 +1097,7 @@ function refreshUsSum(){
   el.textContent = dc.tables.map(t => `${t.key === 'rc' ? 'Raw + Cooked' : 'Ebi Fry + Tempura'}: dasar USD ${fmt2(t.base)} · FOB USD ${fmt2(t.fob)} · duty USD ${fmt2(t.totalDuty)}`).join('  |  ') + (dc.unk ? ` · ${dc.unk} baris belum punya kategori (tidak dihitung)` : '');
 }
 
+/* ---------- buyer ---------- */
 function renderBuyers(){
   const s = $('#buyerSel'); const cur = s.value;
   s.innerHTML = '<option value="">' + (BUY.length ? 'Pilih buyer tersimpan…' : 'Belum ada buyer tersimpan') + '</option>' + BUY.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
@@ -752,6 +1105,7 @@ function renderBuyers(){
 }
 function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'buyer'; }
 
+/* ---------- database item ---------- */
 function itField(k){ return $('#it-' + k); }
 const IT_KEYS = ['nama','style','size','kategori','kode','pcs','harga','hargaUnit','netKg','netLbs','grossKg','grossLbs'];
 function resetItemForm(){
@@ -800,6 +1154,7 @@ function renderItemsTable(){
   }
 }
 
+/* ---------- arsip ---------- */
 function renderArchive(){
   const tb = $('#arBody'); tb.innerHTML = '';
   const list = ARCH.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -817,9 +1172,11 @@ function renderArchive(){
 }
 function refreshNumbersSilent(){ const n = autoNumbers(D, CO.mark); D.invNo = n.inv; D.plNo = n.pl; }
 
+/* ---------- profil ---------- */
 const CO_KEYS = {name:'co-name', address:'co-addr', fda:'co-fda', mark:'co-mark', place:'co-place', signatory:'co-sign', signatory2:'co-sign2', htsRaw:'co-hts-raw', htsCooked:'co-hts-cooked', htsEbifry:'co-hts-ebifry', htsTempura:'co-hts-tempura', bank:'co-bank'};
 function fillCompany(){ for(const k in CO_KEYS) $('#' + CO_KEYS[k]).value = CO[k] || ''; }
 
+/* ---------- unduh ---------- */
 function safeName(s){ return String(s).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); }
 function browserDownload(filename, data){
   const mime = /\.pdf$/i.test(filename) ? 'application/pdf' : /\.xlsx$/i.test(filename) ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/json';
@@ -1050,6 +1407,7 @@ async function buildXLSX(){
   return wb.xlsx.writeBuffer();
 }
 
+/* ---------- aksi ---------- */
 function validDoc(){ if(model(D).tot.ctn <= 0){ toast('Isi jumlah karton minimal satu baris dulu'); return false; } return true; }
 async function saveDoc(){
   if(!validDoc()) return false;
@@ -1058,6 +1416,7 @@ async function saveDoc(){
   try{ await Store.put('invoices', D.id, D); renderPaper(); toast('Tersimpan di arsip'); return true; }catch(e){ toast('Gagal menyimpan dokumen'); return false; }
 }
 
+/* ---------- dashboard ---------- */
 const US_RE = /\b(USA|U\.S\.A?\.?|US|UNITED STATES|AMERICA)\b/;
 const ASIA_RE = /JAPAN|TOKYO|OSAKA|YOKOHAMA|NAGOYA|KOREA|BUSAN|CHINA|SHANGHAI|HONG ?KONG|TAIWAN|SINGAPORE|MALAYSIA|THAILAND|BANGKOK|VIETNAM|PHILIPPINES|MANILA|INDIA|CAMBODIA|MYANMAR|BRUNEI/;
 function regionOf(d){
@@ -1144,6 +1503,7 @@ async function buildDashXLSX(o, from, to){
   wd.views = [{state:'frozen', ySplit:1}];
   return wb.xlsx.writeBuffer();
 }
+/* ---------- mulai ---------- */
 function showView(v){
   $$('#nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v ? 'true' : 'false'));
   ['make','items','archive','dash','profile'].forEach(n => { $('#v-' + n).hidden = n !== v; });
